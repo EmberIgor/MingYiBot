@@ -1,6 +1,4 @@
-from nonebot.rule import to_me
 from nonebot.adapters import Message, Event
-from nonebot.params import CommandArg
 from nonebot.plugin import on_notice, on_request
 
 noticeHandler = on_notice()

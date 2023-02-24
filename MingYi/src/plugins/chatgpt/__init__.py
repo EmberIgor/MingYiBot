@@ -1,14 +1,14 @@
-import nonebot
+from nonebot import get_driver
 from nonebot.rule import to_me
 from nonebot.adapters import Message, Event
 from nonebot.params import CommandArg
-from nonebot.plugin import on_command, on_message
+from nonebot.plugin import on_command
 from revChatGPT.V1 import Chatbot
 
 chatbot = Chatbot(config={
-    "access_token": nonebot.get_driver().config.chatgpt_access_token
+    "access_token": get_driver().config.chatgpt_access_token
 })
-chatgptMessageHandler = on_command("", to_me())
+chatgptMessageHandler = on_command("", to_me(), priority=100)
 
 
 @chatgptMessageHandler.handle()

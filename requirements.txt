@@ -3,7 +3,7 @@ argcomplete==2.0.0
 arrow==1.2.3
 binaryornot==0.4.4
 cashews==5.2.0
-certifi @ file:///C:/b/abs_85o_6fm0se/croot/certifi_1671487778835/work/certifi
+certifi
 chardet==5.1.0
 charset-normalizer==3.0.1
 chevron==0.14.0

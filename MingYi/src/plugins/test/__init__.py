@@ -1,14 +1,21 @@
 from nonebot.rule import to_me
 from nonebot.adapters import Message, Event
 from nonebot.params import CommandArg
-from nonebot.plugin import on_command
+from nonebot.plugin import on_notice, on_request
 
-echo = on_command("echo", to_me())
+noticeHandler = on_notice()
+requestsHandler = on_request()
 
 
-@echo.handle()
-async def handle_echo(event: Event, message: Message = CommandArg()):
-    print("=================")
-    print(f"event:{event.dict()}")
-    print("=================")
-    await echo.send(message=message)
+@noticeHandler.handle()
+async def handle_noticeHandler(event: Event):
+    print("==========on_notice==========")
+    print(event.dict())
+    print("=============================")
+
+
+@requestsHandler.handle()
+async def handle_requestsHandler(event: Event):
+    print("==========on_request==========")
+    print(event.dict())
+    print("==============================")

@@ -17,12 +17,14 @@ async def handle_chatgptMessage(event: Event, message: Message = CommandArg()):
     conversation = None
     chatResultMessage = ""
     conversationList = chatbot.get_conversations()
+    character_settings = "接下来你将扮演一个叫茗懿的中国女生，用活泼可爱的语气说话。"
+    send_message = character_settings + str(message)
     if len(conversationList) > 0:
         conversation = conversationList[0]['id']
     if conversation is None:
-        for data in chatbot.ask(str(message)):
+        for data in chatbot.ask(send_message):
             chatResultMessage = data["message"]
     else:
-        for data in chatbot.ask(str(message), conversation_id=str(conversation)):
+        for data in chatbot.ask(send_message, conversation_id=str(conversation)):
             chatResultMessage = data["message"]
     await chatgptMessageHandler.send(message=chatResultMessage, at_sender=True)

@@ -19,6 +19,10 @@ async def handle_chatgptMessage(event: Event, message: Message = CommandArg()):
     conversationList = chatbot.get_conversations()
     if len(conversationList) > 0:
         conversation = conversationList[0]['id']
-    for data in chatbot.ask(str(message), conversation_id=str(conversation) if conversation else None):
-        chatResultMessage = data["message"]
+    if conversation is None:
+        for data in chatbot.ask(str(message)):
+            chatResultMessage = data["message"]
+    else:
+        for data in chatbot.ask(str(message), conversation_id=str(conversation)):
+            chatResultMessage = data["message"]
     await chatgptMessageHandler.send(message=chatResultMessage, at_sender=True)

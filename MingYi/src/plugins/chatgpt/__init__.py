@@ -17,7 +17,7 @@ async def handle_chatgptMessage(event: Event, message: Message = CommandArg()):
     conversation = None
     chatResultMessage = ""
     conversationList = chatbot.get_conversations()
-    character_settings = "接下来你将扮演一个叫茗懿的中国女生，用活泼可爱的语气说话。"
+    character_settings = "接下来你将扮演一个叫茗懿的中国女生，用活泼可爱的语气说话。接下来是我对你说的话："
     send_message = character_settings + str(message)
     if len(conversationList) > 0:
         conversation = conversationList[0]['id']

@@ -24,7 +24,9 @@ async def _(event: Event, state: T_State):
         now.second) + ".wav"
     await get_YuYing(state["voice"][1], waveName, state["voice"][0])
     await SPEECH.send(
-        MessageSegment.record("file:///" + str(os.path.dirname(os.path.abspath(__file__))) + "\\" + waveName))
+        MessageSegment.record(
+            "file:///" + str(os.path.dirname(os.path.abspath(__file__))).replace('\\', '/') + "/" + waveName))
+    os.remove(str(os.path.dirname(os.path.abspath(__file__))) + "/" + waveName)
 
 
 @SAY.handle()
@@ -35,5 +37,6 @@ async def _(event: Event, state: T_State):
         now.second) + ".wav"
     await get_YuYing(state["voice"][2], waveName, "chat")
     await SAY.send(
-        MessageSegment.record("file:///" + str(os.path.dirname(os.path.abspath(__file__))) + "\\" + waveName))
-    os.remove(str(os.path.dirname(os.path.abspath(__file__))) + "\\" + waveName)
+        MessageSegment.record(
+            "file:///" + str(os.path.dirname(os.path.abspath(__file__))).replace('\\', '/') + "/" + waveName))
+    os.remove(str(os.path.dirname(os.path.abspath(__file__))) + "/" + waveName)

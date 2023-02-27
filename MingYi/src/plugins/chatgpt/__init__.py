@@ -13,6 +13,8 @@ chatgptMessageHandler = on_command("", to_me(), priority=100)
 
 @chatgptMessageHandler.handle()
 async def handle_chatgptMessage(event: Event, message: Message = CommandArg()):
+    if event.dict()['sender']['user_id'] == 1306401441:
+        return
     global chatbot
     conversation = None
     chatResultMessage = ""

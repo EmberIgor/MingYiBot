@@ -35,7 +35,7 @@ async def _(event: Event, state: T_State):
     now = datetime.datetime.now()
     waveName = str(now.year) + str(now.month) + str(now.day) + str(now.hour) + str(now.minute) + str(
         now.second) + ".wav"
-    await get_YuYing(state["voice"][2], waveName, "chat")
+    await get_YuYing(state["voice"][2], waveName, "cheerful")
     await SAY.send(
         MessageSegment.record(
             "file:///" + str(os.path.dirname(os.path.abspath(__file__))).replace('\\', '/') + "/" + waveName))

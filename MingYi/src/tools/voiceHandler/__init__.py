@@ -26,12 +26,6 @@ voiceList = {
 }
 
 
-def print_voice_list():
-    print("语音列表：")
-    for key in voiceList:
-        print(key)
-
-
 def get_access_token():
     fetch_token_url = 'https://eastus.api.cognitive.microsoft.com/sts/v1.0/issuetoken'
     headers = {

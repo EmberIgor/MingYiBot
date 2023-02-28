@@ -7,8 +7,6 @@ from nonebot.rule import to_me
 from nonebot.adapters import Event
 from nonebot.typing import T_State
 
-voiceHandler.print_voice_list()
-
 pattern = "(^愤怒|^平静|^开朗|^不满|^惊恐|^温柔|^抒情|^一般|^助理|^聊天|^客户服务|^播音|^悲伤|^严肃|^撒娇|^阅读|^默认)的说*"
 SPEECH = on_regex(pattern)
 SAY = on_command("说", rule=to_me())

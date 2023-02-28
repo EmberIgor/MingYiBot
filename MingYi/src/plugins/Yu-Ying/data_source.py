@@ -4,7 +4,6 @@ import wave
 import re
 from nonebot import get_driver
 
-subscription_key = get_driver().config.tts_subscription_key
 voiceList = {"愤怒": "angry",
              "镇静": "calm",
              "开朗": "cheerful",
@@ -42,7 +41,7 @@ def get_speech(access_token, text, waveName, voice_type):
            "xmlns:emo='http://www.w3.org/2009/10/emotionml' " \
            "version='1.0' " \
            "xml:lang='en-US'>" \
-           "<voice name='zh-CN-XiaoxiaoNeural'>" \
+           "<voice name='zh-CN-liaoning-XiaobeiNeural'>" \
            f"<mstts:express-as style='{voice_type}'>" \
            f"<prosody rate='0%' pitch='0%'>{text}</prosody>" \
            "</mstts:express-as></voice></speak>"
@@ -72,5 +71,5 @@ async def get_YuYing(test, wave_name, typeOfVoice):
                 text += i
         else:
             text += i.encode("unicode_escape").decode('utf-8').replace('\\u', '&#x') + ';'
-    access_token = get_token(subscription_key)
+    access_token = get_token(get_driver().config.tts_subscription_key)
     get_speech(access_token, text, wave_name, typeOfVoice)

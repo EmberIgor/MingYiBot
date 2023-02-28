@@ -22,7 +22,9 @@ voice_answer_off = on_command("关闭语音回复", to_me())
 
 @chatgptMessageHandler.handle()
 async def handle_chatgptMessage(event: Event, message: Message = CommandArg()):
-    if event.dict()['sender']['user_id'] == 1306401441:
+    if event.dict()['sender']['user_id'] == 1306401441 \
+            or event.dict()['sender']['user_id'] == 1446534506 \
+            or event.dict()['sender']['user_id'] == 2796338486:
         return
     global chatbot
     global conversationList

@@ -5,7 +5,7 @@ from nonebot.adapters import Message, Event
 from nonebot.params import CommandArg
 from nonebot.plugin import on_command
 from revChatGPT.V1 import Chatbot
-from nonebot.adapters.onebot.v11 import MessageSegment，Bot
+from nonebot.adapters.onebot.v11 import MessageSegment, Bot
 import voiceHandler
 import os
 

@@ -21,7 +21,7 @@ voice_answer_off = on_command("关闭语音回复", to_me())
 
 
 @chatgptMessageHandler.handle()
-async def handle_chatgptMessage(event: Event, message: Message = CommandArg()):
+async def handle_chatgptMessage(bot: Bot, event: Event, message: Message = CommandArg()):
     if event.dict()['sender']['user_id'] == 1306401441 \
             or event.dict()['sender']['user_id'] == 1446534506 \
             or event.dict()['sender']['user_id'] == 2796338486:
@@ -34,6 +34,7 @@ async def handle_chatgptMessage(event: Event, message: Message = CommandArg()):
     send_message = character_settings + str(message)
     if len(conversationList) > 0:
         conversation = conversationList[0]['id']
+    print(conversation)
     if conversation is None:
         for data in chatbot.ask(send_message):
             chatResultMessage = data["message"]
@@ -45,14 +46,29 @@ async def handle_chatgptMessage(event: Event, message: Message = CommandArg()):
             for data in chatbot.ask(send_message):
                 chatResultMessage = data["message"]
             conversationList = chatbot.get_conversations()
-    # await chatgptMessageHandler.send(message=chatResultMessage, at_sender=True)
     if is_voice_answer:
         ssml = voiceHandler.message_to_ssml(chatResultMessage, voice_type="cheerful")
         waveUrl = voiceHandler.get_speech(ssml)
         await chatgptMessageHandler.send(MessageSegment.record("file:///" + str(waveUrl).replace('\\', '/')))
         os.remove(str(waveUrl))
-    else:
-        await chatgptMessageHandler.send(message=chatResultMessage, at_sender=True)
+    # else:
+    #     # await chatgptMessageHandler.send(message=chatResultMessage, at_sender=True)
+    #     group_id = event.dict()['group_id'] if event.dict()['message_type'] == "group" else None
+    #     cq_message = f"[CQ:reply,id={event.dict()['message_id']}][CQ:at,qq={event.dict()['sender']['user_id']}] " \
+    #                  f"[CQ:at,qq={event.dict()['sender']['user_id']}]" \
+    #         if group_id is not None else ""
+    #     await bot.call_api("send_msg", message_type=f"{event.dict()['message_type']}",
+    #                        user_id=event.dict()['sender']['user_id'],
+    #                        group_id=group_id,
+    #                        message=f"{cq_message} {chatResultMessage}")
+    group_id = event.dict()['group_id'] if event.dict()['message_type'] == "group" else None
+    cq_message = f"[CQ:reply,id={event.dict()['message_id']}][CQ:at,qq={event.dict()['sender']['user_id']}] " \
+                 f"[CQ:at,qq={event.dict()['sender']['user_id']}]" \
+        if group_id is not None else ""
+    await bot.call_api("send_msg", message_type=f"{event.dict()['message_type']}",
+                       user_id=event.dict()['sender']['user_id'],
+                       group_id=group_id,
+                       message=f"{cq_message} \n{chatResultMessage}")
 
 
 @voice_answer_on.handle()

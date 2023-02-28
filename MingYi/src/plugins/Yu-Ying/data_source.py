@@ -41,7 +41,7 @@ def get_speech(access_token, text, waveName, voice_type):
            "xmlns:emo='http://www.w3.org/2009/10/emotionml' " \
            "version='1.0' " \
            "xml:lang='en-US'>" \
-           "<voice name='zh-CN-liaoning-XiaobeiNeural'>" \
+           "<voice name='zh-CN-XiaoxiaoNeural'>" \
            f"<mstts:express-as style='{voice_type}'>" \
            f"<prosody rate='0%' pitch='0%'>{text}</prosody>" \
            "</mstts:express-as></voice></speak>"

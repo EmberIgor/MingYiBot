@@ -16,8 +16,8 @@ conversationList = chatbot.get_conversations()
 is_voice_answer = False
 
 chatgptMessageHandler = on_command("", to_me(), priority=100)
-voice_answer_on = on_command("开启语音回复", to_me(), permission=SUPERUSER)
-voice_answer_off = on_command("关闭语音回复", to_me(), permission=SUPERUSER)
+voice_answer_on = on_command("开启语音回复", to_me())
+voice_answer_off = on_command("关闭语音回复", to_me())
 
 
 @chatgptMessageHandler.handle()
@@ -56,12 +56,18 @@ async def handle_chatgptMessage(event: Event, message: Message = CommandArg()):
 @voice_answer_on.handle()
 async def handle_voice_answer_on(event: Event):
     global is_voice_answer
-    is_voice_answer = True
-    await voice_answer_on.send("语音回复已开启")
+    if await SUPERUSER(bot, event):
+        is_voice_answer = True
+        await voice_answer_on.send("语音回复已开启")
+    else:
+        await voice_answer_on.send("你没有权限开启语音回复", at_sender=True)
 
 
 @voice_answer_off.handle()
 async def handle_voice_answer_off(event: Event):
     global is_voice_answer
-    is_voice_answer = False
-    await voice_answer_off.send("语音回复已关闭")
+    if await SUPERUSER(bot, event):
+        is_voice_answer = False
+        await voice_answer_off.send("语音回复已关闭")
+    else:
+        await voice_answer_off.send("你没有权限关闭语音回复", at_sender=True)

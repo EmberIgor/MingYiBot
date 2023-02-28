@@ -5,7 +5,7 @@ from nonebot.adapters import Message, Event
 from nonebot.params import CommandArg
 from nonebot.plugin import on_command
 from revChatGPT.V1 import Chatbot
-from nonebot.adapters.onebot.v11 import MessageSegment
+from nonebot.adapters.onebot.v11 import MessageSegment，Bot
 import voiceHandler
 import os
 
@@ -54,7 +54,7 @@ async def handle_chatgptMessage(event: Event, message: Message = CommandArg()):
 
 
 @voice_answer_on.handle()
-async def handle_voice_answer_on(event: Event):
+async def handle_voice_answer_on(bot: Bot, event: Event):
     global is_voice_answer
     if await SUPERUSER(bot, event):
         is_voice_answer = True
@@ -64,7 +64,7 @@ async def handle_voice_answer_on(event: Event):
 
 
 @voice_answer_off.handle()
-async def handle_voice_answer_off(event: Event):
+async def handle_voice_answer_off(bot: Bot, event: Event):
     global is_voice_answer
     if await SUPERUSER(bot, event):
         is_voice_answer = False

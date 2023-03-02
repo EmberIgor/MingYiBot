@@ -14,14 +14,21 @@ chatbot = Chatbot(config={
 })
 conversationList = chatbot.get_conversations()
 is_voice_answer = False
+is_chatgpt_function_on = True
 
 chatgptMessageHandler = on_command("", to_me(), priority=100)
 voice_answer_on = on_command("开启语音回复", to_me())
 voice_answer_off = on_command("关闭语音回复", to_me())
+chatgpt_function_on = on_command("开启聊天机器人", to_me(), permission=SUPERUSER)
+chatgpt_function_off = on_command("关闭聊天机器人", to_me(), permission=SUPERUSER)
 
 
 @chatgptMessageHandler.handle()
 async def handle_chatgptMessage(bot: Bot, event: Event, message: Message = CommandArg()):
+    global is_chatgpt_function_on
+    if not is_chatgpt_function_on:
+        await chatgptMessageHandler.send("聊天功能已暂时被主人关闭")
+        return
     if event.dict()['sender']['user_id'] == 1306401441 \
             or event.dict()['sender']['user_id'] == 1446534506 \
             or event.dict()['sender']['user_id'] == 2796338486:
@@ -40,6 +47,7 @@ async def handle_chatgptMessage(bot: Bot, event: Event, message: Message = Comma
             chatResultMessage = data["message"]
     else:
         try:
+            print(f"使用对话id: {conversation}")
             for data in chatbot.ask(send_message, conversation_id=str(conversation)):
                 chatResultMessage = data["message"]
         except KeyError:
@@ -89,3 +97,23 @@ async def handle_voice_answer_off(bot: Bot, event: Event):
         await voice_answer_off.send("语音回复已关闭")
     else:
         await voice_answer_off.send("你没有权限关闭语音回复", at_sender=True)
+
+
+@chatgpt_function_on.handle()
+async def handle_chatgpt_function_on(bot: Bot, event: Event):
+    global is_chatgpt_function_on
+    if await SUPERUSER(bot, event):
+        is_chatgpt_function_on = True
+        await chatgpt_function_on.send("聊天机器人已开启")
+    else:
+        await chatgpt_function_on.send("你没有权限开启聊天机器人", at_sender=True)
+
+
+@chatgpt_function_off.handle()
+async def handle_chatgpt_function_off(bot: Bot, event: Event):
+    global is_chatgpt_function_on
+    if await SUPERUSER(bot, event):
+        is_chatgpt_function_on = False
+        await chatgpt_function_off.send("聊天机器人已关闭")
+    else:
+        await chatgpt_function_off.send("你没有权限关闭聊天机器人", at_sender=True)

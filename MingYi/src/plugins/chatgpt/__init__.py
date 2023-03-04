@@ -112,7 +112,7 @@ async def handle_chatgpt_function_switch(bot: Bot, event: Event):
         message = event.dict()['message']
         mode_choose = re.findall(r"(.+?)聊天机器人", str(message))[0]
         is_chatgpt_function_on = True if mode_choose == "开启" else False
-        await chatgpt_function_switch.send(f"聊天机器人已{'开启' if is_chatgpt_function_on else '关闭'}")
+        await chatgpt_function_switch.send(f"聊天功能已{'开启' if is_chatgpt_function_on else '关闭'}")
     else:
         await chatgpt_function_switch.send("你没有权限切换聊天机器人状态", at_sender=True)
 

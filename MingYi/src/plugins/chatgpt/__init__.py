@@ -36,9 +36,7 @@ async def handle_chatgptMessage(bot: Bot, event: Event, message: Message = Comma
         if not await SUPERUSER(bot, event):
             await chatgptMessageHandler.send("目前主人设定为调试模式，您无法使用聊天功能", at_sender=True)
             return
-    if event.dict()['sender']['user_id'] == 1306401441 \
-            or event.dict()['sender']['user_id'] == 1446534506 \
-            or event.dict()['sender']['user_id'] == 2796338486:
+    if event.dict()['sender']['user_id'] == 1446534506 or event.dict()['sender']['user_id'] == 2796338486:
         return
     chatResultMessage = chatHandler.ask(str(message), chat_mode, event.dict()['sender']['user_id'])
     # 语音回复部分

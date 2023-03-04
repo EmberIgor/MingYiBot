@@ -3,7 +3,11 @@ import sys
 import nonebot
 from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
 
+# sys.path.insert(0, os.getcwd())
 sys.path.append(f"{os.getcwd()}/src/tools")
+# print("==========sys.path==========")
+# print(sys.path)
+# print("=============================")
 
 nonebot.init()
 

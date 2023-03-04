@@ -1,3 +1,7 @@
+import os
+import dataSource
+import voiceHandler
+import openai
 from nonebot import get_driver
 from nonebot.rule import to_me
 from nonebot.permission import SUPERUSER
@@ -6,8 +10,6 @@ from nonebot.params import CommandArg
 from nonebot.plugin import on_command
 from revChatGPT.V1 import Chatbot
 from nonebot.adapters.onebot.v11 import MessageSegment, Bot
-import voiceHandler
-import os
 
 chatbot = Chatbot(config={
     "access_token": get_driver().config.chatgpt_access_token

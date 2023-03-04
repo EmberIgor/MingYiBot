@@ -57,7 +57,7 @@ async def handle_chatgptMessage(bot: Bot, event: Event, message: Message = Comma
     await bot.call_api("send_msg", message_type=f"{event.dict()['message_type']}",
                        user_id=event.dict()['sender']['user_id'],
                        group_id=group_id,
-                       message=f"{cq_message} \n{chatResultMessage}")
+                       message=f"{cq_message}" + "\n" if group_id is not None else "" + f"{chatResultMessage}")
 
 
 # @chatgptMessageHandler.handle()

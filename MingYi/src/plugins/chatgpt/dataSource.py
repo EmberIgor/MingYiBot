@@ -43,4 +43,5 @@ class ChatHandler:
         if len(self.transcripts_of_conversations[mode][user_id]) > 50:
             del self.transcripts_of_conversations[mode][user_id]
             chat_api_res_message += "\n\n为了节省内存，主人设定超过50轮对话将强制清空对话记录，现在已经将您与茗懿的对话记录重置。"
+        print(chat_api_res_message)
         return chat_api_res_message

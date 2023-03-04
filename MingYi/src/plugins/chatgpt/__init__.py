@@ -19,15 +19,18 @@ chatgptMessageHandler = on_command("", to_me(), priority=100)
 voice_answer_switch = on_regex("^(^开启|^关闭)语音回复$", permission=SUPERUSER)
 chatgpt_function_switch = on_regex("^(^开启|^关闭)聊天机器人$", permission=SUPERUSER)
 debug_mode_switch = on_regex("^(^开启|^关闭)调试模式$", rule=to_me(), permission=SUPERUSER)
-chatgpt_mode_change = on_regex("^切换到.+模式$", rule=to_me(), permission=SUPERUSER)
+chatgpt_mode_change = on_regex("^切换到.+模式$", rule=to_me())
 
 
 @chatgpt_mode_change.handle()
-async def handle_chatgpt_mode_change(event: Event):
+async def handle_chatgpt_mode_change(bot: Bot, event: Event):
     global chat_mode
-    message = event.dict()['message']
-    chat_mode = re.findall(r"切换到(.+?)模式", str(message))[0]
-    await chatgpt_mode_change.send(f"已切换到{chat_mode}模式")
+    if await SUPERUSER(bot, event):
+        message = event.dict()['message']
+        chat_mode = re.findall(r"切换到(.+?)模式", str(message))[0]
+        await chatgpt_mode_change.send(f"已切换到{chat_mode}模式")
+    else:
+        await chatgpt_mode_change.send("您没有权限执行此操作", at_sender=True)
 
 
 @chatgptMessageHandler.handle()

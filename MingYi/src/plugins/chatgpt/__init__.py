@@ -16,12 +16,10 @@ is_debug_mode_on = False
 chat_mode = "默认"
 
 chatgptMessageHandler = on_command("", to_me(), priority=100)
-voice_answer_on = on_command("开启语音回复", to_me())
-voice_answer_off = on_command("关闭语音回复", to_me())
-chatgpt_function_on = on_command("开启聊天机器人", to_me(), permission=SUPERUSER)
-chatgpt_function_off = on_command("关闭聊天机器人", to_me(), permission=SUPERUSER)
-chatgpt_mode_change = on_regex("^切换到.+模式$", rule=to_me(), permission=SUPERUSER)
+voice_answer_switch = on_regex("^(^开启|^关闭)语音回复$", permission=SUPERUSER)
+chatgpt_function_switch = on_regex("^(^开启|^关闭)聊天机器人$", permission=SUPERUSER)
 debug_mode_switch = on_regex("^(^开启|^关闭)调试模式$", rule=to_me(), permission=SUPERUSER)
+chatgpt_mode_change = on_regex("^切换到.+模式$", rule=to_me(), permission=SUPERUSER)
 
 
 @chatgpt_mode_change.handle()
@@ -95,44 +93,28 @@ async def handle_chatgptMessage(bot: Bot, event: Event, message: Message = Comma
 #                        message=f"{cq_message} \n{chatResultMessage}")
 
 
-@voice_answer_on.handle()
-async def handle_voice_answer_on(bot: Bot, event: Event):
+@voice_answer_switch.handle()
+async def handle_voice_answer_switch(bot: Bot, event: Event):
     global is_voice_answer
     if await SUPERUSER(bot, event):
-        is_voice_answer = True
-        await voice_answer_on.send("语音回复已开启")
+        message = event.dict()['message']
+        mode_choose = re.findall(r"(.+?)语音回复", str(message))[0]
+        is_voice_answer = True if mode_choose == "开启" else False
+        await voice_answer_switch.send(f"语音回复已{mode_choose}")
     else:
-        await voice_answer_on.send("你没有权限开启语音回复", at_sender=True)
+        await voice_answer_switch.send("你没有权限切换语音回复", at_sender=True)
 
 
-@voice_answer_off.handle()
-async def handle_voice_answer_off(bot: Bot, event: Event):
-    global is_voice_answer
-    if await SUPERUSER(bot, event):
-        is_voice_answer = False
-        await voice_answer_off.send("语音回复已关闭")
-    else:
-        await voice_answer_off.send("你没有权限关闭语音回复", at_sender=True)
-
-
-@chatgpt_function_on.handle()
-async def handle_chatgpt_function_on(bot: Bot, event: Event):
+@chatgpt_function_switch.handle()
+async def handle_chatgpt_function_switch(bot: Bot, event: Event):
     global is_chatgpt_function_on
     if await SUPERUSER(bot, event):
-        is_chatgpt_function_on = True
-        await chatgpt_function_on.send("聊天机器人已开启")
+        message = event.dict()['message']
+        mode_choose = re.findall(r"(.+?)聊天机器人", str(message))[0]
+        is_chatgpt_function_on = True if mode_choose == "开启" else False
+        await chatgpt_function_switch.send(f"聊天机器人已{'开启' if is_chatgpt_function_on else '关闭'}")
     else:
-        await chatgpt_function_on.send("你没有权限开启聊天机器人", at_sender=True)
-
-
-@chatgpt_function_off.handle()
-async def handle_chatgpt_function_off(bot: Bot, event: Event):
-    global is_chatgpt_function_on
-    if await SUPERUSER(bot, event):
-        is_chatgpt_function_on = False
-        await chatgpt_function_off.send("聊天机器人已关闭")
-    else:
-        await chatgpt_function_off.send("你没有权限关闭聊天机器人", at_sender=True)
+        await chatgpt_function_switch.send("你没有权限切换聊天机器人状态", at_sender=True)
 
 
 @debug_mode_switch.handle()

@@ -37,11 +37,20 @@ class ChatHandler:
             self.transcripts_of_conversations[mode][user_id].append(
                 {"role": "assistant", "content": chat_api_res_message}
             )
-        # for data in self.transcripts_of_conversations[mode][user_id]:
-        #     print(data["role"] + ": " + data["content"])
         # 如果数组长度超过50，则删除该键值对
         if len(self.transcripts_of_conversations[mode][user_id]) > 50:
             del self.transcripts_of_conversations[mode][user_id]
             chat_api_res_message += "\n\n为了节省内存，主人设定超过50轮对话将强制清空对话记录，现在已经将您与茗懿的对话记录重置。"
         print(chat_api_res_message)
         return chat_api_res_message
+
+    def clean_conversations(self, mode: str, user_id: int):
+        if mode in self.transcripts_of_conversations:
+            if user_id in self.transcripts_of_conversations[mode]:
+                del self.transcripts_of_conversations[mode][user_id]
+                return True
+        return False
+
+    def clean_all_conversations(self):
+        self.transcripts_of_conversations = {}
+        return True

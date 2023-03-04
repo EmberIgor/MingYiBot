@@ -3,7 +3,6 @@ import json
 from nonebot import require, get_bot
 from nonebot.plugin import on_command
 from nonebot.adapters.onebot.v11 import MessageSegment
-
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 

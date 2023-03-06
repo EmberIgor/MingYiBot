@@ -7,4 +7,7 @@
     <orderEntry type="jdk" jdkName="Python 3.10 (MingYiBot)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
+  <component name="PackageRequirementsSettings">
+    <option name="requirementsPath" value="C:\Users\55316\SCP-Site\代码\GitHub\MingYiBot\requirements.txt" />
+  </component>
 </module>

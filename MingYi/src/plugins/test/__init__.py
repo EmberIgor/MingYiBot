@@ -1,6 +1,7 @@
 from nonebot.adapters import Message, Event
 from nonebot.plugin import on_notice, on_request, on_message
 import os
+from nonebot import get_bot
 from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot.v11 import Bot
 

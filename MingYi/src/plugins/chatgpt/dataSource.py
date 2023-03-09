@@ -31,6 +31,8 @@ class ChatHandler:
         except Exception as error:
             print(error)
             chat_api_response = None
+            del self.transcripts_of_conversations[mode][user_id]
+            chat_api_res_message += "\n\n可能由于积累对话过长，现在已经将您与茗懿的对话记录重置。"
 
         if chat_api_response is not None:
             chat_api_res_message = chat_api_response["choices"][0]["message"]["content"]

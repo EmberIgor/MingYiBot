@@ -24,8 +24,11 @@ async def handle_query_subscription_link(bot: Bot, event: Event, message: Messag
         # 如果是群消息
         if event.dict()['message_type'] == "group":
             await query_subscription_link.send(f"您的订阅链接已经私聊给您", at_sender=True)
-        await bot.call_api("send_msg", message_type=f"private", user_id=event.dict()['sender']['user_id'],
-                           message=f"您的订阅链接为：\n{subscription_link['subscription_link']}")
+            await bot.call_api("send_private_msg", group_id=event.dict()['group_id'],
+                               user_id=event.dict()['sender']['user_id'],
+                               message=f"您的订阅链接为：\n{subscription_link['subscription_link']}")
+        else:
+            await query_subscription_link.send(f"您的订阅链接为：\n{subscription_link['subscription_link']}")
 
 
 @apply_for_a_subscription_link.handle()
@@ -38,5 +41,8 @@ async def handle_apply_for_a_subscription_link(bot: Bot, event: Event, message: 
     else:
         if event.dict()['message_type'] == "group":
             await apply_for_a_subscription_link.send(f"您的订阅链接已经私聊给您", at_sender=True)
-        await bot.call_api("send_msg", message_type=f"private", user_id=event.dict()['sender']['user_id'],
-                           message=f"您的订阅链接为：\n{apply_link['subscription_link']}")
+            await bot.call_api("send_private_msg", group_id=event.dict()['group_id'],
+                               user_id=event.dict()['sender']['user_id'],
+                               message=f"您的订阅链接为：\n{apply_link['subscription_link']}")
+        else:
+            await apply_for_a_subscription_link.send(f"您的订阅链接为：\n{apply_link['subscription_link']}")

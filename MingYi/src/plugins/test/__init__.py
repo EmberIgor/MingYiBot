@@ -9,9 +9,6 @@ noticeHandler = on_notice(block=False)
 requestsHandler = on_request(block=False)
 messageHandler = on_message(block=False)
 
-# 打印文件当前目录,不包含文件名,linux下为绝对路径
-# print(os.path.dirname(os.path.abspath(__file__)))
-
 
 @noticeHandler.handle()
 async def handle_noticeHandler(event: Event):

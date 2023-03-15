@@ -1,4 +1,5 @@
 import openai
+import tiktoken
 from nonebot import get_driver
 from .characterSettings import character_settings
 
@@ -8,6 +9,7 @@ config = get_driver().config
 class ChatHandler:
     # 记录各个人对话的字典
     transcripts_of_conversations = {}
+    default_model = "gpt-3.5-turbo"
 
     def __init__(self):
         global config
@@ -56,3 +58,28 @@ class ChatHandler:
     def clean_all_conversations(self):
         self.transcripts_of_conversations = {}
         return True
+
+    def num_tokens_from_messages(self, message, mode, user_id, model="gpt-3.5-turbo"):
+        temp_toc = self.transcripts_of_conversations
+        Characterisation = character_settings[mode] if mode in character_settings else character_settings["默认"]
+        if mode not in temp_toc:
+            temp_toc[mode] = {}
+        if user_id not in temp_toc[mode]:
+            temp_toc[mode][user_id] = [{"role": "system", "content": Characterisation}]
+            temp_toc[mode][user_id].append({"role": "user", "content": message})
+        else:
+            temp_toc[mode][user_id].append({"role": "user", "content": message})
+        # 计算对话的token数量
+        try:
+            encoding = tiktoken.encoding_for_model(model)
+        except KeyError:
+            encoding = tiktoken.get_encoding("cl100k_base")
+        num_tokens = 0
+        for message in temp_toc[mode][user_id]:
+            num_tokens += 4  # every message follows <im_start>{role/name}\n{content}<im_end>\n
+            for key, value in message.items():
+                num_tokens += len(encoding.encode(value))
+                if key == "name":  # if there's a name, the role is omitted
+                    num_tokens += -1  # role is always required and always 1 token
+        num_tokens += 2  # every reply is primed with <im_start>assistant
+        return num_tokens

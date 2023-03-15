@@ -38,6 +38,14 @@ async def handle_chatgptMessage(bot: Bot, event: Event, message: Message = Comma
             return
     if event.dict()['sender']['user_id'] == 1446534506 or event.dict()['sender']['user_id'] == 2796338486:
         return
+    # 当前会话将会消耗的令牌次数
+    token_cost = chatHandler.num_tokens_from_messages(str(message), chat_mode, event.dict()['sender']['user_id'])
+    if 4090 > token_cost > 3000:
+        await chatgptMessageHandler.send(
+            f"您的会话记录长度已经累计达到{token_cost}的长度，茗懿将继续与您的对话，但为了减轻茗懿的负担，如无必要继续记忆会话，请使用`重置会话`指令重置您与茗懿在当前模式的对话")
+    elif token_cost > 4090:
+        chatHandler.clean_conversations(chat_mode, event.dict()['sender']['user_id'])
+        await chatgptMessageHandler.send(f"您的会话记录长度已经超过4090个token,您与茗懿在当前模式下的会话已被重置。")
     chatResultMessage = chatHandler.ask(str(message), chat_mode, event.dict()['sender']['user_id'])
     # 语音回复部分
     if is_voice_answer:

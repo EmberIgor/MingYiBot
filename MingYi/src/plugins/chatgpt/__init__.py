@@ -40,6 +40,7 @@ async def handle_chatgptMessage(bot: Bot, event: Event, message: Message = Comma
         return
     # 当前会话将会消耗的令牌次数
     token_cost = chatHandler.num_tokens_from_messages(str(message), chat_mode, event.dict()['sender']['user_id'])
+    print(f"当前会话将会消耗的令牌次数为{token_cost}")
     if 4090 > token_cost > 3000:
         await chatgptMessageHandler.send(
             f"您的会话记录长度已经累计达到{token_cost}的长度，茗懿将继续与您的对话，但为了减轻茗懿的负担，如无必要继续记忆会话，请使用`重置会话`指令重置您与茗懿在当前模式的对话")

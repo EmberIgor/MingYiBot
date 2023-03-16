@@ -17,11 +17,11 @@ class ChatHandler:
 
     def ask(self, message: str, mode: str, user_id: int):
         chat_api_res_message = "似乎出了一些问题，无法回复。"
-        Characterisation = character_settings[mode] if mode in character_settings else character_settings["默认"]
+        characterisation = character_settings[mode] if mode in character_settings else character_settings["默认"]
         if mode not in self.transcripts_of_conversations:
             self.transcripts_of_conversations[mode] = {}
         if user_id not in self.transcripts_of_conversations[mode]:
-            self.transcripts_of_conversations[mode][user_id] = [{"role": "system", "content": Characterisation}]
+            self.transcripts_of_conversations[mode][user_id] = [{"role": "system", "content": characterisation}]
             self.transcripts_of_conversations[mode][user_id].append({"role": "user", "content": message})
         else:
             self.transcripts_of_conversations[mode][user_id].append({"role": "user", "content": message})
@@ -61,11 +61,11 @@ class ChatHandler:
 
     def num_tokens_from_messages(self, message, mode, user_id, model="gpt-3.5-turbo"):
         temp_toc = self.transcripts_of_conversations
-        Characterisation = character_settings[mode] if mode in character_settings else character_settings["默认"]
+        characterisation = character_settings[mode] if mode in character_settings else character_settings["默认"]
         if mode not in temp_toc:
             temp_toc[mode] = {}
         if user_id not in temp_toc[mode]:
-            temp_toc[mode][user_id] = [{"role": "system", "content": Characterisation}]
+            temp_toc[mode][user_id] = [{"role": "system", "content": characterisation}]
             temp_toc[mode][user_id].append({"role": "user", "content": message})
         else:
             temp_toc[mode][user_id].append({"role": "user", "content": message})

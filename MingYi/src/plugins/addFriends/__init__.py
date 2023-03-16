@@ -1,7 +1,7 @@
-from nonebot.adapters import Message, Event
-from nonebot.plugin import on_notice, on_request, on_message
-from nonebot.rule import Rule
 from nonebot import get_bot
+from nonebot.adapters import Event
+from nonebot.plugin import on_request
+from nonebot.rule import Rule
 
 
 def add_friend_checker() -> Rule:
@@ -18,7 +18,7 @@ requestsHandler = on_request(rule=add_friend_checker())
 
 
 @requestsHandler.handle()
-async def handle_requestsHandler(event: Event):
+async def handle_requests_handler(event: Event):
     event_dict = event.dict()
     # 如果是好友请求
     if event_dict['request_type'] == 'friend':

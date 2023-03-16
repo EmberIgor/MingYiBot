@@ -1,19 +1,16 @@
-import os
-import re
+from nonebot.adapters import Event
+from nonebot.adapters.onebot.v11 import Bot
+from nonebot.plugin import on_command
+
 from .dataSource import *
-from nonebot.rule import to_me
-from nonebot.permission import SUPERUSER
-from nonebot.adapters import Message, Event
-from nonebot.params import CommandArg
-from nonebot.plugin import on_command, on_regex
-from nonebot.adapters.onebot.v11 import MessageSegment, Bot
+from .dataSource import *
 
 query_subscription_link = on_command("订阅链接")
 apply_for_a_subscription_link = on_command("申请订阅链接")
 
 
 @query_subscription_link.handle()
-async def handle_query_subscription_link(bot: Bot, event: Event, message: Message = CommandArg()):
+async def handle_query_subscription_link(bot: Bot, event: Event):
     friend_list = await bot.call_api("get_friend_list")
     if event.dict()['sender']['user_id'] not in [friend['user_id'] for friend in friend_list]:
         await apply_for_a_subscription_link.send(
@@ -36,7 +33,7 @@ async def handle_query_subscription_link(bot: Bot, event: Event, message: Messag
 
 
 @apply_for_a_subscription_link.handle()
-async def handle_apply_for_a_subscription_link(bot: Bot, event: Event, message: Message = CommandArg()):
+async def handle_apply_for_a_subscription_link(bot: Bot, event: Event):
     friend_list = await bot.call_api("get_friend_list")
     if event.dict()['sender']['user_id'] not in [friend['user_id'] for friend in friend_list]:
         await apply_for_a_subscription_link.send(

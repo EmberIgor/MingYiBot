@@ -11,7 +11,7 @@ dailyNews = on_command("今日新闻", block=True)
 
 
 @dailyNews.handle()
-async def handle_dailyNews():
+async def handle_daily_news():
     res = requests.get("https://api.vvhan.com/api/60s?type=json")
     url = json.loads(res.text)["imgUrl"]
     await dailyNews.send(MessageSegment.image(url))

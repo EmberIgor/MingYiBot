@@ -46,11 +46,11 @@ def message_to_ssml(message, voice_name="zh-CN-XiaoxiaoNeural", voice_type="defa
     return ssml
 
 
-def get_speech(ssml, waveName=None):
+def get_speech(ssml, wave_name=None):
     # 如果子目录Recording不存在则创建
     if not os.path.exists("./src/tools/voiceHandler/Recording"):
         os.makedirs("./src/tools/voiceHandler/Recording")
-    waveName = waveName or str(uuid.uuid4()) + ".wav"
+    wave_name = wave_name or str(uuid.uuid4()) + ".wav"
     access_token = get_access_token()
     headers = {
         "Content-type": "application/ssml+xml",
@@ -67,9 +67,9 @@ def get_speech(ssml, waveName=None):
     response = conn.getresponse()
     data = response.read()
     conn.close()
-    with open("./src/tools/voiceHandler/Recording/" + waveName, "wb") as f:
+    with open("./src/tools/voiceHandler/Recording/" + wave_name, "wb") as f:
         f.write(data)
-    return f"{str(os.path.dirname(os.path.abspath(__file__)))}/Recording/{waveName}"
+    return f"{str(os.path.dirname(os.path.abspath(__file__)))}/Recording/{wave_name}"
 
 
 def message_to_unicode(message):

@@ -25,7 +25,7 @@ clean_chat_data_all = on_command("重置所有会话", rule=to_me(), permission=
 
 
 @chatgptMessageHandler.handle()
-async def handle_chatgptMessage(bot: Bot, event: Event, message: Message = CommandArg()):
+async def handle_chatgpt_message(bot: Bot, event: Event, message: Message = CommandArg()):
     global chat_mode
     global is_chatgpt_function_on
     global is_voice_answer
@@ -47,13 +47,13 @@ async def handle_chatgptMessage(bot: Bot, event: Event, message: Message = Comma
     elif token_cost > 4090:
         chatHandler.clean_conversations(chat_mode, event.dict()['sender']['user_id'])
         await chatgptMessageHandler.send(f"您的会话记录长度已经超过4090个token,您与茗懿在当前模式下的会话已被重置。")
-    chatResultMessage = chatHandler.ask(str(message), chat_mode, event.dict()['sender']['user_id'])
+    chat_result_message = chatHandler.ask(str(message), chat_mode, event.dict()['sender']['user_id'])
     # 语音回复部分
     if is_voice_answer:
-        ssml = voiceHandler.message_to_ssml(chatResultMessage, voice_type="cheerful")
-        waveUrl = voiceHandler.get_speech(ssml)
-        await chatgptMessageHandler.send(MessageSegment.record("file:///" + str(waveUrl).replace('\\', '/')))
-        os.remove(str(waveUrl))
+        ssml = voiceHandler.message_to_ssml(chat_result_message, voice_type="cheerful")
+        wave_url = voiceHandler.get_speech(ssml)
+        await chatgptMessageHandler.send(MessageSegment.record("file:///" + str(wave_url).replace('\\', '/')))
+        os.remove(str(wave_url))
     # 文字回复部分
     group_id = event.dict()['group_id'] if event.dict()['message_type'] == "group" else None
     cq_message = f"[CQ:reply,id={event.dict()['message_id']}][CQ:at,qq={event.dict()['sender']['user_id']}] " \
@@ -63,7 +63,7 @@ async def handle_chatgptMessage(bot: Bot, event: Event, message: Message = Comma
     await bot.call_api("send_msg", message_type=f"{event.dict()['message_type']}",
                        user_id=event.dict()['sender']['user_id'],
                        group_id=group_id,
-                       message=f"{cq_message}" + linefeed + f"{chatResultMessage}")
+                       message=f"{cq_message}" + linefeed + f"{chat_result_message}")
 
 
 # @chatgptMessageHandler.handle()
@@ -144,7 +144,7 @@ async def handle_debug_mode_switch(bot: Bot, event: Event):
 
 
 @clean_chat_data.handle()
-async def handle_clean_chat_data(bot: Bot, event: Event):
+async def handle_clean_chat_data(event: Event):
     global chat_mode
     user_id = event.dict()['sender']['user_id']
     if chatHandler.clean_conversations(chat_mode, user_id):

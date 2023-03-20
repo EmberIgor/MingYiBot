@@ -17,15 +17,15 @@ async def _(event: Event, state: T_State):
     state["voice"] = re.split("的说", str(event.dict()['message']), 1)
     state["voice"][0] = voiceHandler.voiceList[state["voice"][0]]
     ssml = voiceHandler.message_to_ssml(state["voice"][1], voice_type=state["voice"][0])
-    wave_url = voiceHandler.get_speech(ssml)
-    await SPEECH.send(MessageSegment.record("file:///" + str(wave_url).replace('\\', '/')))
-    os.remove(str(wave_url))
+    waveUrl = voiceHandler.get_speech(ssml)
+    await SPEECH.send(MessageSegment.record("file:///" + str(waveUrl).replace('\\', '/')))
+    os.remove(str(waveUrl))
 
 
 @SAY.handle()
 async def _(event: Event, state: T_State):
     state["voice"] = re.split("^(说)", str(event.dict()['message']))
     ssml = voiceHandler.message_to_ssml(state["voice"][2], voice_type="cheerful")
-    wave_url = voiceHandler.get_speech(ssml)
-    await SAY.send(MessageSegment.record("file:///" + str(wave_url).replace('\\', '/')))
-    os.remove(str(wave_url))
+    waveUrl = voiceHandler.get_speech(ssml)
+    await SAY.send(MessageSegment.record("file:///" + str(waveUrl).replace('\\', '/')))
+    os.remove(str(waveUrl))

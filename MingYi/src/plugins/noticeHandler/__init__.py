@@ -8,8 +8,8 @@ from .dataSource import *
 
 def check_poke() -> Rule:
     async def _checker(event: Event) -> bool:
-        if event["notice_type"] == 'notify':
-            if event["sub_type"] == 'poke':
+        if event.notice_type == 'notify':
+            if event.sub_type == 'poke':
                 return True
             else:
                 return False
@@ -21,8 +21,8 @@ def check_poke() -> Rule:
 
 def check_honor() -> Rule:
     async def _checker(event: Event) -> bool:
-        if event["notice_type"] == 'notify':
-            if event["sub_type"] == 'honor':
+        if event.notice_type == 'notify':
+            if event.sub_type == 'honor':
                 return True
             else:
                 return False
@@ -38,16 +38,16 @@ honorHandler = on_notice(rule=check_honor())
 
 @cuoyicuo.handle()
 async def handle_cuoyicuo(event: Event):
-    event_dict = event.dict()
-    if event_dict['target_id'] == get_driver().config.self_id:
-        res = await get_yi_yan()
+    eventDict = event.dict()
+    if eventDict['target_id'] == get_driver().config.self_id:
+        res = await getYiYan()
         await cuoyicuo.send(res['hitokoto'])
     else:
-        await cuoyicuo.send(MessageSegment.at(str(event_dict['target_id'])) + '看起来有人找您')
+        await cuoyicuo.send(MessageSegment.at(str(eventDict['target_id'])) + '看起来有人找您')
 
 
 @honorHandler.handle()
-async def handle_honor_handler(event: Event):
-    event_dict = event.dict()
-    if event_dict['honor_type'] == "talkative":
+async def handle_honorHandler(event: Event):
+    eventDict = event.dict()
+    if eventDict['honor_type'] == "talkative":
         print("龙王")

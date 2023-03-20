@@ -31,7 +31,7 @@ def get_token(subscription_key_value):
     return access_token
 
 
-def get_speech(access_token, text, wave_name, voice_type):
+def get_speech(access_token, text, waveName, voice_type):
     headers = {"Content-type": "application/ssml+xml",
                "X-Microsoft-OutputFormat": "riff-24khz-16bit-mono-pcm",
                "Authorization": "Bearer " + access_token,
@@ -50,7 +50,7 @@ def get_speech(access_token, text, wave_name, voice_type):
     response = conn.getresponse()
     data = response.read()
     conn.close()
-    f = wave.open("./src/plugins/Yu-Ying/" + wave_name, "wb")
+    f = wave.open("./src/plugins/Yu-Ying/" + waveName, "wb")
     f.setnchannels(1)  # 单声道
     f.setframerate(24000)  # 采样率
     f.setsampwidth(2)  # sample width 2 bytes(16 bits)
@@ -58,7 +58,8 @@ def get_speech(access_token, text, wave_name, voice_type):
     f.close()
 
 
-async def get_yu_ying(test, wave_name, type_of_voice):
+async def get_YuYing(test, wave_name, typeOfVoice):
+    global subscription_key
     text = ''
     for i in test:
         if i == '\n':
@@ -71,4 +72,4 @@ async def get_yu_ying(test, wave_name, type_of_voice):
         else:
             text += i.encode("unicode_escape").decode('utf-8').replace('\\u', '&#x') + ';'
     access_token = get_token(get_driver().config.tts_subscription_key)
-    get_speech(access_token, text, wave_name, type_of_voice)
+    get_speech(access_token, text, wave_name, typeOfVoice)

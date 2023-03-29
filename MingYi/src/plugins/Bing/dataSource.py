@@ -46,7 +46,7 @@ class BingHandler:
                 prompt=str(message),
                 conversation_style=ConversationStyle.balanced
             )
-            bot.close()
+            await bot.close()
         except Exception as e:
             print(e)
             is_error = True

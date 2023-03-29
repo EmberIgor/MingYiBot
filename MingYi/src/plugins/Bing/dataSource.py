@@ -49,7 +49,7 @@ class BingHandler:
             bing_res_message = re.sub(r'\[\^.+?\^]', r'', bot_response["item"]["messages"][1]["text"])
             await bot.close()
         except Exception as e:
-            print("error" + e)
+            print(e)
             is_error = True
         return {
             "message": bing_res_message,

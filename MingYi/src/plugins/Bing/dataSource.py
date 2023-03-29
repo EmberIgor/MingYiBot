@@ -42,14 +42,14 @@ class BingHandler:
         #     del self.transcripts_of_conversations[user_id]
         try:
             bot = Chatbot(cookies=self.cookies)
-            bot_response = await self.transcripts_of_conversations[user_id]["bot"].ask(
+            bot_response = await bot.ask(
                 prompt=str(message),
                 conversation_style=ConversationStyle.balanced
             )
             bing_res_message = re.sub(r'\[\^.+?\^]', r'', bot_response["item"]["messages"][1]["text"])
             await bot.close()
         except Exception as e:
-            print(e)
+            print("error" + e)
             is_error = True
         return {
             "message": bing_res_message,

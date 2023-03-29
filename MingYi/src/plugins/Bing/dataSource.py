@@ -25,7 +25,7 @@ class BingHandler:
         #         }
         #     time_diff = datetime.datetime.now() - self.transcripts_of_conversations[user_id]["last_conversation_time"]
         #     if time_diff.total_seconds() > 600 or int(self.transcripts_of_conversations[user_id]["invocationId"]) >= 14:
-        #         self.transcripts_of_conversations[user_id]["bot"].close()
+        #         await self.transcripts_of_conversations[user_id]["bot"].close()
         #         self.transcripts_of_conversations[user_id]["bot"] = Chatbot(cookies=self.cookies)
         #     bot_response = await self.transcripts_of_conversations[user_id]["bot"].ask(
         #         prompt=str(message),
@@ -38,7 +38,7 @@ class BingHandler:
         #     print(e)
         #     is_error = True
         #     bing_res_message = "似乎出了一些问题，已经重置会话，错误类型: " + str(type(e))
-        #     self.transcripts_of_conversations[user_id]["bot"].close()
+        #     await self.transcripts_of_conversations[user_id]["bot"].close()
         #     del self.transcripts_of_conversations[user_id]
         try:
             bot = Chatbot(cookies=self.cookies)
@@ -46,6 +46,7 @@ class BingHandler:
                 prompt=str(message),
                 conversation_style=ConversationStyle.balanced
             )
+            bing_res_message = re.sub(r'\[\^.+?\^]', r'', bot_response["item"]["messages"][1]["text"])
             await bot.close()
         except Exception as e:
             print(e)

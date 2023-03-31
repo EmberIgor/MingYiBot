@@ -1,7 +1,7 @@
 [
     {
         "domain": ".bing.com",
-        "expirationDate": 1711713285.402962,
+        "expirationDate": 1711861668.534058,
         "hostOnly": false,
         "httpOnly": false,
         "name": "SnrOvr",
@@ -14,7 +14,7 @@
     },
     {
         "domain": ".bing.com",
-        "expirationDate": 1714650878.437391,
+        "expirationDate": 1714799265.331467,
         "hostOnly": false,
         "httpOnly": false,
         "name": "SRCHUSR",
@@ -23,11 +23,11 @@
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "DOB=20230329&T=1680090816000&POEX=W&TPC=1680090878000"
+        "value": "DOB=20230329&T=1680239259000&TPC=1680090878000&POEX=W"
     },
     {
         "domain": "www.bing.com",
-        "expirationDate": 1680092675,
+        "expirationDate": 1680241066,
         "hostOnly": true,
         "httpOnly": false,
         "name": "ai_session",
@@ -36,11 +36,11 @@
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "nTKRVFTpAboEC2pbu9bcij|1680090875596|1680090875596"
+        "value": "2KtlJOvfbPIplleaQEHFD1|1680239266589|1680239266589"
     },
     {
         "domain": ".bing.com",
-        "expirationDate": 1680134051.522174,
+        "expirationDate": 1680282460.37074,
         "hostOnly": false,
         "httpOnly": true,
         "name": "SUID",
@@ -53,7 +53,7 @@
     },
     {
         "domain": ".bing.com",
-        "expirationDate": 1714650884.418061,
+        "expirationDate": 1714799266.67231,
         "hostOnly": false,
         "httpOnly": false,
         "name": "SRCHHPGUSR",
@@ -62,11 +62,11 @@
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "BRW=XW&BRH=T&CW=2048&CH=1018&SCW=2031&SCH=3465&SRCHLANG=zh-Hans&PV=15.0.0&PRVCW=2048&PRVCH=1018&DPR=1.3&UTC=480&DM=0&HV=1680090884&WTS=63815687634"
+        "value": "BRW=XW&BRH=T&CW=2048&CH=1018&SCW=2048&SCH=1018&SRCHLANG=zh-Hans&PV=15.0.0&PRVCW=2048&PRVCH=1018&DPR=1.3&UTC=480&DM=0&HV=1680239267&WTS=63815687634"
     },
     {
         "domain": ".bing.com",
-        "expirationDate": 1695988484.144665,
+        "expirationDate": 1696050465.717638,
         "hostOnly": false,
         "httpOnly": false,
         "name": "ANON",
@@ -79,7 +79,7 @@
     },
     {
         "domain": "www.bing.com",
-        "expirationDate": 1711626875.493568,
+        "expirationDate": 1711775266.547625,
         "hostOnly": true,
         "httpOnly": false,
         "name": "MicrosoftApplicationsTelemetryDeviceId",
@@ -100,7 +100,7 @@
         "secure": true,
         "session": true,
         "storeId": null,
-        "value": "SID=1A3B13E42FFB623B16BA01072EB863E1&R=46&RB=46&GB=0&RG=0&RP=46"
+        "value": "SID=14CB8CBD5EAB6D8C2A5E9E585FA36C72&R=46&RB=46&GB=0&RG=0&RP=46"
     },
     {
         "domain": ".bing.com",
@@ -112,23 +112,11 @@
         "secure": true,
         "session": true,
         "storeId": null,
-        "value": "hit=1680094418665&t=4"
+        "value": "hit=1680242861899&t=4"
     },
     {
         "domain": ".bing.com",
-        "hostOnly": false,
-        "httpOnly": false,
-        "name": "dsc",
-        "path": "/",
-        "sameSite": "no_restriction",
-        "secure": true,
-        "session": true,
-        "storeId": null,
-        "value": "order=News"
-    },
-    {
-        "domain": ".bing.com",
-        "expirationDate": 1681300484.144722,
+        "expirationDate": 1681448865.717692,
         "hostOnly": false,
         "httpOnly": false,
         "name": "_U",
@@ -137,7 +125,7 @@
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "16bo2qZMZGuV_l0uiF8H2zxxLmdKawLzLopRo13nPUaCXBrYEc330eT_XfrNuRhm1TenN5qdCaok6JHT7T_TaZO96eexvNVsIGXU0ebuFEsS7NBLo442eP_0WQqKO5wc1cOhTNXaRLvb7TvY2DFKr5PqAn7fbCRXiTtqpCaFzZueJhjX2p5mR3TnYj2Jw35PfrR6sqGa1tGszC230GQqf8w"
+        "value": "1m4RkdwPG2FmdPZZGAuuwW4oY3-YL-og78i_uRc63BbZa4a_V0R3bhcvo8EcwHY8_3KDor37NNhSkq5AjIH3D5V35KOGAF-0rPP5c6Len5z7HUSpreVjgniZbfTMvXWQ8K40k2hzmm0LXGspttTuMfbqALhiLLyyv5M4tth6g8m7HqGlVck63-5HyxKEjHjq4bsMbagMiMfwrd0BUou2a6g"
     },
     {
         "domain": ".bing.com",
@@ -191,7 +179,7 @@
     },
     {
         "domain": ".bing.com",
-        "expirationDate": 1714650884.587442,
+        "expirationDate": 1711861668.534027,
         "hostOnly": false,
         "httpOnly": false,
         "name": "_RwBf",
@@ -200,11 +188,11 @@
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "ilt=2&ihpd=2&ispd=0&rc=46&rb=46&gb=0&rg=0&pc=46&mtu=0&rbb=0.0&g=0&cid=&clo=0&v=6&l=2023-03-29T07:00:00.0000000Z&lft=0001-01-01T00:00:00.0000000&aof=0&o=0&p=bingcopilotwaitlist&c=MY00IA&t=4264&s=2023-03-15T20:31:22.5106561+00:00&ts=2023-03-29T11:54:43.0996359+00:00&rwred=0&wls=2&lka=0&lkt=0&TH=&r=1&mta=0&e=y1EDPPXDj9CGjklfcdlDtAaJasUlg2B2mDAnPI7cJ9cPFnad4AM34eG46suDTUQoPWzf5p1CLJvJ9mBomvsOaQ&A=0CA27EE8FD91BB8F353FFD12FFFFFFFF"
+        "value": "ilt=2&ihpd=2&ispd=0&rc=46&rb=46&gb=0&rg=0&pc=46&mtu=0&rbb=0.0&g=0&cid=&clo=0&v=2&l=2023-03-30T07:00:00.0000000Z&lft=0001-01-01T00:00:00.0000000&aof=0&o=0&p=bingcopilotwaitlist&c=MY00IA&t=4264&s=2023-03-15T20:31:22.5106561+00:00&ts=2023-03-31T05:07:47.4490550+00:00&rwred=0&wls=2&lka=0&lkt=0&TH=&r=1&mta=0&e=y1EDPPXDj9CGjklfcdlDtAaJasUlg2B2mDAnPI7cJ9cPFnad4AM34eG46suDTUQoPWzf5p1CLJvJ9mBomvsOaQ&A="
     },
     {
         "domain": ".bing.com",
-        "expirationDate": 1714650873.963346,
+        "expirationDate": 1714799266.257236,
         "hostOnly": false,
         "httpOnly": false,
         "name": "_UR",
@@ -225,7 +213,7 @@
         "secure": false,
         "session": true,
         "storeId": null,
-        "value": "F=1&SID=1A3B13E42FFB623B16BA01072EB863E1"
+        "value": "SID=14CB8CBD5EAB6D8C2A5E9E585FA36C72"
     },
     {
         "domain": ".bing.com",
@@ -237,11 +225,11 @@
         "secure": true,
         "session": true,
         "storeId": null,
-        "value": "d268b83d-e265-4b2a-9484-ee99ed6f7b8d"
+        "value": "ae072633-aa73-4198-90d3-876a46265bfa"
     },
     {
         "domain": "www.bing.com",
-        "expirationDate": 1713786888.363302,
+        "expirationDate": 1713935267.533984,
         "hostOnly": true,
         "httpOnly": true,
         "name": "MUIDB",
@@ -267,7 +255,20 @@
     },
     {
         "domain": ".bing.com",
-        "expirationDate": 1714650874.123573,
+        "expirationDate": 1711629448,
+        "hostOnly": false,
+        "httpOnly": false,
+        "name": "_clck",
+        "path": "/",
+        "sameSite": null,
+        "secure": false,
+        "session": false,
+        "storeId": null,
+        "value": "1nxqz7q|1|fab|0"
+    },
+    {
+        "domain": ".bing.com",
+        "expirationDate": 1714799266.454364,
         "hostOnly": false,
         "httpOnly": false,
         "name": "_HPVN",
@@ -276,7 +277,7 @@
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "CS=eyJQbiI6eyJDbiI6MSwiU3QiOjAsIlFzIjowLCJQcm9kIjoiUCJ9LCJTYyI6eyJDbiI6MSwiU3QiOjAsIlFzIjowLCJQcm9kIjoiSCJ9LCJReiI6eyJDbiI6MSwiU3QiOjAsIlFzIjowLCJQcm9kIjoiVCJ9LCJBcCI6dHJ1ZSwiTXV0ZSI6dHJ1ZSwiTGFkIjoiMjAyMy0wMy0yOVQwMDowMDowMFoiLCJJb3RkIjowLCJHd2IiOjAsIkRmdCI6bnVsbCwiTXZzIjowLCJGbHQiOjAsIkltcCI6OH0="
+        "value": "CS=eyJQbiI6eyJDbiI6MiwiU3QiOjAsIlFzIjowLCJQcm9kIjoiUCJ9LCJTYyI6eyJDbiI6MiwiU3QiOjAsIlFzIjowLCJQcm9kIjoiSCJ9LCJReiI6eyJDbiI6MiwiU3QiOjAsIlFzIjowLCJQcm9kIjoiVCJ9LCJBcCI6dHJ1ZSwiTXV0ZSI6dHJ1ZSwiTGFkIjoiMjAyMy0wMy0zMVQwMDowMDowMFoiLCJJb3RkIjowLCJHd2IiOjAsIkRmdCI6bnVsbCwiTXZzIjowLCJGbHQiOjAsIkltcCI6MTF9"
     },
     {
         "domain": ".bing.com",
@@ -288,7 +289,7 @@
         "secure": true,
         "session": true,
         "storeId": null,
-        "value": "FABaBBRaTOJILtFsMkpLVWSG6AN6C/svRwNmAAAEgAAACHlGMb/wqMKyGAQeoFlGaaC0a2gwUirns6/X1AvVItlekrDDLPgffenysRW46XXyae4952E6xNvAtKXKrDu8ZlXZcuh+fLOhIeGYsGlgQrR5kaNCRIFD2pLPXHgSl9118ilfTjmICbj6VMIUcOAkrqKSTTGUTJc5NFGFEGHgsQThkXzMbWDHfvZOV7J8Vqa2EDoGRplKrz1yC5DJV0Mc7D+b67ljvH7kwBSY/k3PECe+oqa2SQa7BKFA2WRNVKMFrmHcYqQ7+/OO5a1dgWRI9TVKvIlJfNSmxKH8EMyKNInYhwTrrwvfRc/UufhBSzKw5lTk97v+OYo+IS8FimbhBT/eGDy+F/Seo3ZK/Qsy0eXUBq4X1ki8KjgyfKsGNlS806kanVemjn9UjJF+B7xsMHskJ5Hp9RUSgjSCcjp8m89XeK2EaBPzXkgBDjZtbutgJ7vYx2AoT0QYg6K4UskeKmj6pDzEpib+PFk9/NA98PP87pVzJYF3JqV1bxL22Y813w7ZoGMQsRrdTOC9JTxQKLBNqQMojR0oJAB4wGmJtTtwinKB95ybCNvEPAFoSVGccAKBRkKvQ4UscYEJeYpOlyxjR23tUUTO/rFGOw7rgSXeAcPsUrnCrLpyTbB7PYb0dMc6mjqG1ofTeYY9khiHScqOLiYuPhUiq75spCUWOHm37MVEEF3ygLmAEZdGX7UH0wK2yqAIv22p7JYHDz5Tg9wRL4G1fpvPY3hGZvqMOLCciFzfyXsWzMrwKCFEc6S1tyE2ufwlNwDQBfEnCmr/iQcyiAr+6VgM2Aiw7Pqqy1FRAhP8vQOEc6/FXa+DFLTAFteL0ZddSh0ImmdYGOvGqTRPlmVQ5Vz8Ra0+/uKpOxSmVTlrRIBS20Q3+vPJ2LmfPhIbRhmBAHH6e5V2WWtrJ+r494+THDNzzcXDnvMXBiMYVaiOx3UwqRKnSaD3SMkHtuap8xG9ThdFEO27c32//4tMJ7xxGSCC1LQ6f1QSwkYBDXfbjwLMji5KI7jgPRaLOrULuCaafsLd0C5bjFseCQeecYa9Z9VWpy6LccBE2wHgoTQT8UYGRXiAOn8tzpnHUcF7NaExvN9qVarbCDUlxn4jLTFBoT2sb7h5M7jEYCLSlrMXKecIAfZIDToFnudkBvTyhuOV3NdypjjG8xnhPunc8R2g5b3hcuZbWh4LxnMPKGXcmSYkiUTFtaYMUubUIfz2ETTRxFR6D3QOP872gRW71iaTiZKl+RWVsd43B5BqC4Sok9UgN95FID4MZSUucfUzYiWcwUOda/qHl9vhmy2OZoC6UQJKpQq5sPOC0MFd3pLQ9meHcmM0kVk/w3TYNSi1MFrJg/J8801oeMAr286zOWSw+djGpfD2DvHB9FyrnBDeLW999PX9WkcnaJaUXzTyFABgJbLoJGcxBx+YEauO4ohrHUdvdw=="
+        "value": "FABiBBRaTOJILtFsMkpLVWSG6AN6C/svRwNmAAAEgAAACAUn9U6WmIdTIAS0qqNSrcLOlGxVJlNtPoG6lvpeN6dILLM61eEl9MPE9BwhfRj34adB/qhuuyP/BRw12Rnt8vFOajXvkN2u7WTWmwyLsbaNlXmTS6mBXiXXfeUGed/I0X6PxdBW1TjqrF9LXYKpfM++/p9E8cOam5qUMEVzdKZUHatj+h51xHC/1HsZjV7mdusuzE32lQKyN8jy2wiH1XDa5f7ONXFzRYL3pGgzzYWEwJq9EavYxUrDNp7zBZhn3Mf0KYLueU6xqhXHfqNplSNN3iz91PU1+c8ALx5ZBlgLUUWmX7HODMnwKVW7SEcx/OKp/ZTOozehvQB5pSQl4d+EanKnXYExfwiJHTRu4CdTCheV1TBCDLvCIPIUZyFDvg5uBlGo/J10JcBC7PX+7Kwbp9OME+gUkfTYlFkUY8vQzVj+iK4Lj96b0z6hpaYc08hTJ+cC7uQrVDojwTlNRqbFdcrYUldQZbxEybKipUTuvSU29V7v8V2/StsKK03iXN9N760PgfwFR8uOZepR1qBLduyyXW81zrcvPwnd13KReHgghB+svLJvxq6N87oKnXB2b5k6E5E1tENdKETikpEDP4yJf1kwkvWHm0KFITv0jWaTCgLsZNG7/ZdGz5pSAFapMzysFi4yt7IAGJjJHt/vWIqNycqaWm/f/462luCXGtkxPWKH56DNO4h82yCapreMHueTjbP3WgiMSJnMAshcK5fcnfa+ZWxVr81Yss/UDNeAuhuiLK4Lf45elfNd9eWzXGGKC/WBAbzp7yVhHyMAGolGlOd08wWhMvoJkodxBCcPqfTRg/x3B7t1t6DbhcK/duVg7qJY4tCI0wrs8zGxzn1X0GiGyMRxboNLCNg/I1LpDVkO0HzX00jylBNrNFl7P/70fFzIwJUR49nIBNjz1ED2wOWWbIffnSFya8ajA61NIaFDd/WNCajj/uR8AeJtwRq4EDUazOisTHpHqE6uv0otonYKwtqXtwDu2xAiEbKPDeFr2jqQNcO4ph6xssDnobAod0q4Xk+EDpqbN5HuuTD+bSeskHN29xmEkNtL4Kb4oXZFotgoCwpPMQUg2luYKl/1oJ4UQ+sRV+SGO2eGwyxhRBOgjeoQcGk94Hs1Ql9dOMbu8I/dIAIHN7WF39sRf0Pvp/DMP195Y7mr/tyJGZYAOg9w2dx53izBJ+ITIRq+UmwltEIG44Hd5BKoMoLGYmFud7c2Oh+Mql6qegN4S9bkUZXkj9ft9RsrCjr1whuovFX70iVMfHkWVmR7iRc0sPj7V0jR8N1oNqtCqQbEhwIVQ+4WtW6WNrPT2sXhtLOn6FhqDp71G+BTwWFB5QoDt555Ur2pys514ov+bziKwVImfxG+ygLu7SVo/txrcW50odmmskhJv/AS27GpyJ4qJRNq7THOanoUAFJBS1Ais//3hlVC4aCj5w+twz4B"
     },
     {
         "domain": ".bing.com",
@@ -305,18 +306,6 @@
     },
     {
         "domain": ".bing.com",
-        "hostOnly": false,
-        "httpOnly": false,
-        "name": "SNRHOP",
-        "path": "/",
-        "sameSite": "no_restriction",
-        "secure": true,
-        "session": true,
-        "storeId": null,
-        "value": "I=&TS="
-    },
-    {
-        "domain": ".bing.com",
         "expirationDate": 1714650817.880758,
         "hostOnly": false,
         "httpOnly": false,
@@ -330,7 +319,7 @@
     },
     {
         "domain": ".bing.com",
-        "expirationDate": 1681300484.397252,
+        "expirationDate": 1681448865.717565,
         "hostOnly": false,
         "httpOnly": true,
         "name": "WLID",

@@ -27,6 +27,7 @@ async def _():
     for group in group_list:
         # 如果群号不在黑名单中
         if group["group_id"] not in [984625860, 1041873822]:
+        # if group["group_id"] not in [984625860]:
             # await bot.call_api('send_group_msg', group_id=group["group_id"], message=f'[CQ:image,file={url}]')
             await bot.call_api('send_group_msg', group_id=group["group_id"],
-                               message=f'[CQ:image,file=https://api.03c3.cn/zb/]')
+                               message=f'[CQ:image,file=https://open.xiaojunv.com/60s.php?format=image]')

@@ -18,7 +18,7 @@ async def handle_dailyNews():
     # await dailyNews.send(MessageSegment.image("http://dwz.2xb.cn/zaob"))
 
 
-@scheduler.scheduled_job('cron', hour='08', minute='30')
+@scheduler.scheduled_job('cron', hour='09', minute='00')
 async def _():
     bot = get_bot()
     group_list = await bot.call_api('get_group_list')

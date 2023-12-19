@@ -12,8 +12,9 @@ dailyNews = on_command("今日新闻", block=True)
 
 @dailyNews.handle()
 async def handle_dailyNews():
-    res = requests.get("http://dwz.2xb.cn/zaob")
-    url = json.loads(res.text)["imageUrl"]
+    # res = requests.get("http://dwz.2xb.cn/zaob")
+    # url = json.loads(res.text)["imageUrl"]
+    url = "https://api.jun.la/60s.php?format=image"
     await dailyNews.send(MessageSegment.image(url))
     # await dailyNews.send(MessageSegment.image("http://dwz.2xb.cn/zaob"))
 

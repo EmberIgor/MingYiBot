@@ -1,5 +1,8 @@
 import requests
 import json
+import aiohttp
+import asyncio
+import datetime
 from nonebot import require, get_bot
 from nonebot.plugin import on_command
 from nonebot.adapters.onebot.v11 import MessageSegment
@@ -12,21 +15,26 @@ dailyNews = on_command("今日新闻", block=True)
 
 @dailyNews.handle()
 async def handle_dailyNews():
-    # res = requests.get("http://dwz.2xb.cn/zaob")
-    # url = json.loads(res.text)["imageUrl"]
-    url = "https://api.jun.la/60s.php?format=image"
+    res = requests.get("http://dwz.2xb.cn/zaob")
+    url = json.loads(res.text)["imageUrl"]
     await dailyNews.send(MessageSegment.image(url))
-    # await dailyNews.send(MessageSegment.image("http://dwz.2xb.cn/zaob"))
 
 
-@scheduler.scheduled_job('cron', hour='09', minute='00')
+@scheduler.scheduled_job('cron', hour='8', minute='00')
 async def _():
     bot = get_bot()
     group_list = await bot.call_api('get_group_list')
-    # res = requests.get("http://dwz.2xb.cn/zaob")
-    # url = json.loads(res.text)["imageUrl"]
-    url = "https://api.jun.la/60s.php?format=image"
+    async with aiohttp.ClientSession() as session:
+        while True:
+            async with session.get("http://dwz.2xb.cn/zaob") as res:
+                news_info = json.loads(await res.text())
+                datatime = datetime.datetime.strptime(news_info["datatime"], "%Y-%m-%d").date()
+                current_date = datetime.date.today()
+                if datatime == current_date:
+                    break
+            await asyncio.sleep(60)  # 使用异步sleep
+    url = news_info["imageUrl"]
     for group in group_list:
-        # 如果群号不在黑名单中
-        if group["group_id"] not in [984625860, 1041873822]:
+        # 如果群号不在黑名单中 984625860, 1041873822
+        if group["group_id"] not in []:
             await bot.call_api('send_group_msg', group_id=group["group_id"], message=f'[CQ:image,file={url}]')

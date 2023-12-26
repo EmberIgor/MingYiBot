@@ -36,5 +36,5 @@ async def _():
     url = news_info["imageUrl"]
     for group in group_list:
         # 如果群号不在黑名单中 984625860, 1041873822
-        if group["group_id"] not in []:
+        if group["group_id"] not in [984625860, 1041873822]:
             await bot.call_api('send_group_msg', group_id=group["group_id"], message=f'[CQ:image,file={url}]')

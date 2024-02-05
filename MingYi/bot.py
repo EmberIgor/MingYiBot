@@ -8,7 +8,7 @@ sys.path.append(f"{os.getcwd()}/src/tools")
 
 nonebot.init()
 
-if get_driver().config.usr_proxy == "True":
+if get_driver().config.use_proxy == "True":
     os.environ["http_proxy"] = get_driver().config.http_proxy
     os.environ["https_proxy"] = get_driver().config.https_proxy
 driver = nonebot.get_driver()

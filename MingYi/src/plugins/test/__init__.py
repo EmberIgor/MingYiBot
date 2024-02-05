@@ -35,7 +35,7 @@ async def handle_requestsHandler(event: Event):
 @messageHandler.handle()
 async def handle_messageHandler(bot: Bot, event: Event):
     print("==========on_message==========")
-    print(event.dict())
+    # print(event.dict())
     print(
         f"{datetime.datetime.fromtimestamp(event.dict()['time']).strftime('%Y-%m-%d %H:%M:%S')} "
         f"{event.dict()['sender']['nickname']}: {event.dict()['message']}")

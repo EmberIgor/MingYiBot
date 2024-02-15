@@ -27,7 +27,7 @@ default_conversations = [
 
 def extract_dice_data(input_string):
     # 定义正则表达式
-    pattern = r"[\.。]?(\d*)rd(\d+)(?:/(\d+))?"
+    pattern = r"[\.。]?r(\d*)d(\d+)(?:/(\d+))?"
 
     # 使用正则表达式匹配字符串
     match = re.match(pattern, input_string)

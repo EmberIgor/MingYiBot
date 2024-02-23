@@ -7,7 +7,7 @@ from nonebot import require, get_bot
 
 noticeHandler = on_notice(block=False)
 requestsHandler = on_request(block=False)
-messageHandler = on_message(block=False)
+# messageHandler = on_message(block=False)
 test_function_handler = on_command('test')
 
 
@@ -32,11 +32,10 @@ async def handle_requestsHandler(event: Event):
     print("==============================")
 
 
-@messageHandler.handle()
-async def handle_messageHandler(bot: Bot, event: Event):
-    print("==========on_message==========")
-    # print(event.dict())
-    print(
-        f"{datetime.datetime.fromtimestamp(event.dict()['time']).strftime('%Y-%m-%d %H:%M:%S')} "
-        f"{event.dict()['sender']['nickname']}: {event.dict()['message']}")
-    print("==============================")
+# @messageHandler.handle()
+# async def handle_messageHandler(bot: Bot, event: Event):
+#     print("==========on_message==========")
+#     print(
+#         f"{datetime.datetime.fromtimestamp(event.dict()['time']).strftime('%Y-%m-%d %H:%M:%S')} "
+#         f"{event.dict()['sender']['nickname']}: {event.dict()['message']}")
+#     print("==============================")

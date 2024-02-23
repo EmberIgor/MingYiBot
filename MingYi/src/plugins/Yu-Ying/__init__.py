@@ -1,5 +1,6 @@
 import os
-import voiceHandler
+# import voiceHandler
+from .data_source import *
 import re
 from nonebot import on_regex, on_command
 from nonebot.adapters.onebot.v11 import MessageSegment
@@ -15,9 +16,9 @@ SAY = on_command("说", rule=to_me())
 @SPEECH.handle()
 async def _(event: Event, state: T_State):
     state["voice"] = re.split("的说", str(event.dict()['message']), 1)
-    state["voice"][0] = voiceHandler.voiceList[state["voice"][0]]
-    ssml = voiceHandler.message_to_ssml(state["voice"][1], voice_type=state["voice"][0])
-    waveUrl = voiceHandler.get_speech(ssml)
+    state["voice"][0] = data_source.voiceList[state["voice"][0]]
+    ssml = data_source.message_to_ssml(state["voice"][1], voice_type=state["voice"][0])
+    waveUrl = data_source.get_speech(ssml)
     await SPEECH.send(MessageSegment.record("file:///" + str(waveUrl).replace('\\', '/')))
     os.remove(str(waveUrl))
 
@@ -25,7 +26,7 @@ async def _(event: Event, state: T_State):
 @SAY.handle()
 async def _(event: Event, state: T_State):
     state["voice"] = re.split("^(说)", str(event.dict()['message']))
-    ssml = voiceHandler.message_to_ssml(state["voice"][2], voice_type="cheerful")
-    waveUrl = voiceHandler.get_speech(ssml)
+    ssml = data_source.message_to_ssml(state["voice"][2], voice_type="cheerful")
+    waveUrl = data_source.get_speech(ssml)
     await SAY.send(MessageSegment.record("file:///" + str(waveUrl).replace('\\', '/')))
     os.remove(str(waveUrl))

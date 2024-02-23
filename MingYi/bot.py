@@ -4,9 +4,11 @@ import nonebot
 from nonebot import get_driver
 from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
 
-sys.path.append(f"{os.getcwd()}/src/tools")
+# sys.path.append(f"{os.getcwd()}/src/tools")
 
 nonebot.init()
+
+nonebot.load_plugin('nonebot_plugin_repeater')
 
 if get_driver().config.use_proxy == "True":
     os.environ["http_proxy"] = get_driver().config.http_proxy

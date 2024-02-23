@@ -1,67 +1,80 @@
-import requests
-import http.client
-import wave
+import os
 import re
+import requests
+import uuid
+import http.client
 from nonebot import get_driver
 
-voiceList = {"愤怒": "angry",
-             "镇静": "calm",
-             "开朗": "cheerful",
-             "不满": "disgruntled",
-             "惊恐": "fearful",
-             "温柔": "gentle",
-             "抒情": "lyrical",
-             "一般": "general",
-             "助理": "assistant",
-             "聊天": "chat",
-             "客户服务": "customer service",
-             "播音": "newscast",
-             "悲伤": "sad",
-             "严肃": "serious"
-             }
+voiceList = {
+    "默认": "default",
+    "愤怒": "angry",
+    "平静": "calm",
+    "开朗": "cheerful",
+    "不满": "disgruntled",
+    "惊恐": "fearful",
+    "温柔": "gentle",
+    "抒情": "lyrical",
+    "一般": "general",
+    "助理": "assistant",
+    "聊天": "chat",
+    "客户服务": "customer service",
+    "播音": "newscast",
+    "悲伤": "sad",
+    "严肃": "serious",
+    "撒娇": "affectionate",
+    "阅读": "reading",
+}
 
 
-def get_token(subscription_key_value):
+def get_access_token():
     fetch_token_url = 'https://eastus.api.cognitive.microsoft.com/sts/v1.0/issuetoken'
     headers = {
-        'Ocp-Apim-Subscription-Key': subscription_key_value
+        'Ocp-Apim-Subscription-Key': get_driver().config.tts_subscription_key
     }
     response = requests.post(fetch_token_url, headers=headers)
     access_token = str(response.text)
     return access_token
 
 
-def get_speech(access_token, text, waveName, voice_type):
-    headers = {"Content-type": "application/ssml+xml",
-               "X-Microsoft-OutputFormat": "riff-24khz-16bit-mono-pcm",
-               "Authorization": "Bearer " + access_token,
-               "User-Agent": "TTSForPython"}
-    body = "<speak xmlns='http://www.w3.org/2001/10/synthesis' " \
-           "xmlns:mstts='http://www.w3.org/2001/mstts' " \
-           "xmlns:emo='http://www.w3.org/2009/10/emotionml' " \
-           "version='1.0' " \
-           "xml:lang='en-US'>" \
-           "<voice name='zh-CN-XiaoxiaoNeural'>" \
+def message_to_ssml(message, voice_name="zh-CN-XiaoxiaoNeural", voice_type="default", rate="0%", pitch="0%"):
+    message = message_to_unicode(message)
+    ssml = f"<voice name='{voice_name}'>" \
            f"<mstts:express-as style='{voice_type}'>" \
-           f"<prosody rate='0%' pitch='0%'>{text}</prosody>" \
-           "</mstts:express-as></voice></speak>"
+           f"<prosody rate='{rate}' pitch='{pitch}'>{message}</prosody>" \
+           "</mstts:express-as>" \
+           "</voice>"
+    return ssml
+
+
+def get_speech(ssml, waveName=None):
+    # 如果子目录Recording不存在则创建
+    if not os.path.exists("./src/tools/voiceHandler/Recording"):
+        os.makedirs("./src/tools/voiceHandler/Recording")
+    waveName = waveName or str(uuid.uuid4()) + ".wav"
+    access_token = get_access_token()
+    headers = {
+        "Content-type": "application/ssml+xml",
+        "X-Microsoft-OutputFormat": "riff-24khz-16bit-mono-pcm",
+        "Authorization": "Bearer " + access_token,
+        "User-Agent": "TTSForPython"
+    }
+    body = "<speak xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts' " \
+           "xmlns:emo='http://www.w3.org/2009/10/emotionml' version='1.0' xml:lang='zh-CN'>" \
+           f"{ssml}" \
+           "</speak>"
     conn = http.client.HTTPSConnection("eastus.tts.speech.microsoft.com")
     conn.request("POST", "/cognitiveservices/v1", body, headers)
     response = conn.getresponse()
     data = response.read()
     conn.close()
-    f = wave.open("./src/plugins/Yu-Ying/" + waveName, "wb")
-    f.setnchannels(1)  # 单声道
-    f.setframerate(24000)  # 采样率
-    f.setsampwidth(2)  # sample width 2 bytes(16 bits)
-    f.writeframes(data)
-    f.close()
+    with open("./src/tools/voiceHandler/Recording/" + waveName, "wb") as f:
+        f.write(data)
+    return f"{str(os.path.dirname(os.path.abspath(__file__)))}/Recording/{waveName}"
 
 
-async def get_YuYing(test, wave_name, typeOfVoice):
-    global subscription_key
+def message_to_unicode(message):
     text = ''
-    for i in test:
+    for i in message:
         if i == '\n':
             pass
         elif re.match("[^\u4e00-\u9fa5]", i):
@@ -71,5 +84,4 @@ async def get_YuYing(test, wave_name, typeOfVoice):
                 text += i
         else:
             text += i.encode("unicode_escape").decode('utf-8').replace('\\u', '&#x') + ';'
-    access_token = get_token(get_driver().config.tts_subscription_key)
-    get_speech(access_token, text, wave_name, typeOfVoice)
+    return text

@@ -1,7 +1,7 @@
 import os
 import re
 from .dataSource import ChatHandler
-import voiceHandler
+# import voiceHandler
 from nonebot.rule import to_me
 from nonebot.permission import SUPERUSER
 from nonebot.adapters import Message, Event
@@ -49,11 +49,11 @@ async def handle_chatgptMessage(bot: Bot, event: Event, message: Message = Comma
         await chatgptMessageHandler.send(f"您的会话记录长度已经超过4090个token,您与茗懿在当前模式下的会话已被重置。")
     chatResultMessage = chatHandler.ask(str(message), chat_mode, event.dict()['sender']['user_id'])
     # 语音回复部分
-    if is_voice_answer:
-        ssml = voiceHandler.message_to_ssml(chatResultMessage, voice_type="cheerful")
-        waveUrl = voiceHandler.get_speech(ssml)
-        await chatgptMessageHandler.send(MessageSegment.record("file:///" + str(waveUrl).replace('\\', '/')))
-        os.remove(str(waveUrl))
+    # if is_voice_answer:
+    #     ssml = voiceHandler.message_to_ssml(chatResultMessage, voice_type="cheerful")
+    #     waveUrl = voiceHandler.get_speech(ssml)
+    #     await chatgptMessageHandler.send(MessageSegment.record("file:///" + str(waveUrl).replace('\\', '/')))
+    #     os.remove(str(waveUrl))
     # 文字回复部分
     group_id = event.dict()['group_id'] if event.dict()['message_type'] == "group" else None
     cq_message = f"[CQ:reply,id={event.dict()['message_id']}][CQ:at,qq={event.dict()['sender']['user_id']}] " \
@@ -65,33 +65,6 @@ async def handle_chatgptMessage(bot: Bot, event: Event, message: Message = Comma
                        group_id=group_id,
                        message=f"{cq_message}" + linefeed + f"{chatResultMessage}")
 
-
-# @chatgptMessageHandler.handle()
-# async def handle_chatgptMessage(bot: Bot, event: Event, message: Message = CommandArg()):
-#     global is_chatgpt_function_on
-#     if not is_chatgpt_function_on:
-#         await chatgptMessageHandler.send("聊天功能已暂时被主人关闭")
-#         return
-#     if event.dict()['sender']['user_id'] == 1306401441 \
-#             or event.dict()['sender']['user_id'] == 1446534506 \
-#             or event.dict()['sender']['user_id'] == 2796338486:
-#         return
-#     chatResultMessage = dataSource.get_answer_from_web(message)
-#     # 语音回复部分
-#     if is_voice_answer:
-#         ssml = voiceHandler.message_to_ssml(chatResultMessage, voice_type="cheerful")
-#         waveUrl = voiceHandler.get_speech(ssml)
-#         await chatgptMessageHandler.send(MessageSegment.record("file:///" + str(waveUrl).replace('\\', '/')))
-#         os.remove(str(waveUrl))
-#     # 文字回复部分
-#     group_id = event.dict()['group_id'] if event.dict()['message_type'] == "group" else None
-#     cq_message = f"[CQ:reply,id={event.dict()['message_id']}][CQ:at,qq={event.dict()['sender']['user_id']}] " \
-#                  f"[CQ:at,qq={event.dict()['sender']['user_id']}]" \
-#         if group_id is not None else ""
-#     await bot.call_api("send_msg", message_type=f"{event.dict()['message_type']}",
-#                        user_id=event.dict()['sender']['user_id'],
-#                        group_id=group_id,
-#                        message=f"{cq_message} \n{chatResultMessage}")
 
 @chatgpt_mode_change.handle()
 async def handle_chatgpt_mode_change(bot: Bot, event: Event):

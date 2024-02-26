@@ -19,18 +19,17 @@ async def _():
 
 
 @noticeHandler.handle()
-async def handle_noticeHandler(event: Event):
+async def handle_notice_handler(event: Event):
     print("==========on_notice==========")
     print(event.dict())
     print("=============================")
 
 
 @requestsHandler.handle()
-async def handle_requestsHandler(event: Event):
+async def handle_requests_handler(event: Event):
     print("==========on_request==========")
     print(event.dict())
     print("==============================")
-
 
 # @messageHandler.handle()
 # async def handle_messageHandler(bot: Bot, event: Event):

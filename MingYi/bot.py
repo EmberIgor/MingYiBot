@@ -8,8 +8,6 @@ from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
 
 nonebot.init()
 
-nonebot.load_plugin('nonebot_plugin_repeater')
-
 if get_driver().config.use_proxy == "True":
     os.environ["http_proxy"] = get_driver().config.http_proxy
     os.environ["https_proxy"] = get_driver().config.https_proxy

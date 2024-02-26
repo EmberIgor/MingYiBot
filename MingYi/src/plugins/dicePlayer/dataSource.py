@@ -1,7 +1,7 @@
 import re
 import openai
 import random
-from nonebot import get_driver
+from nonebot import get_driver,logger
 
 config = get_driver().config
 default_model = "gpt-3.5-turbo"
@@ -62,7 +62,7 @@ def chat(rolls, dice_results, total, effect):
                 f'投掷的结果为：{dice_results}。'
                 f'点数总计为：{total}。'
                 )
-    print(chat_txt)
+    logger.success(chat_txt)
     if effect is not None:
         if effect:
             chat_txt += f'检定结果：成功。'
@@ -78,4 +78,5 @@ def chat(rolls, dice_results, total, effect):
         messages=chat_conversations
     )
     chat_api_res_message = chat_api_response["choices"][0]["message"]["content"]
+    chat_api_res_message += '\n==========\n'+chat_txt
     return chat_api_res_message

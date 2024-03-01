@@ -28,9 +28,9 @@ async def _():
         while True:
             async with session.get("http://dwz.2xb.cn/zaob") as res:
                 news_info = json.loads(await res.text())
-                datatime = datetime.datetime.strptime(news_info["datatime"], "%Y-%m-%d").date()
+                res_datatime = datetime.datetime.strptime(news_info["datatime"], "%Y-%m-%d").date()
                 current_date = datetime.date.today()
-                if datatime == current_date:
+                if res_datatime == current_date:
                     break
             await asyncio.sleep(60)  # 使用异步sleep
     url = news_info["imageUrl"]

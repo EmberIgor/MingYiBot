@@ -10,6 +10,12 @@ services:
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
       COMMAND_START: '["/"]'
       ONEBOT_ACCESS_TOKEN: "${ONEBOT_ACCESS_TOKEN:-}"
+      AICHAT_KEY: "${AICHAT_KEY:-}"
+      AICHAT_BASEURL: "${AICHAT_BASEURL:-}"
+      AICHAT_MODEL: "${AICHAT_MODEL:-}"
+      AICHAT_DEFAULT_ROLE: "${AICHAT_DEFAULT_ROLE:-default}"
+      AICHAT_HISTORY_LIMIT: "${AICHAT_HISTORY_LIMIT:-12}"
+      AICHAT_ROLES_PATH: "${AICHAT_ROLES_PATH:-data/ai_chat_roles.json}"
     ports:
       - "${BOT_PORT:-8080}:8080"
     volumes:

@@ -1,12 +1,12 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from nonebot import get_bots, get_driver, get_plugin_config, logger, on_regex
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent, MessageSegment
 from nonebot.plugin import PluginMetadata
 
 from .config import Config
-from .data_source import DailyNewsError, build_daily_news_image_url
+from .data_source import DailyNewsError, build_daily_news_image_url, fetch_daily_news_date
 
 
 __plugin_meta__ = PluginMetadata(
@@ -36,12 +36,23 @@ def _parse_send_time(value: str) -> tuple[int, int]:
     return hour, minute
 
 
+def _time_at_today(value: str, now: datetime) -> datetime:
+    hour, minute = _parse_send_time(value)
+    return now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+
 def _next_run_at(now: datetime) -> datetime:
-    hour, minute = _parse_send_time(config.dailynews_time)
-    run_at = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    run_at = _time_at_today(config.dailynews_time, now)
     if run_at <= now:
         run_at += timedelta(days=1)
     return run_at
+
+
+def _latest_run_at(now: datetime) -> datetime:
+    latest = _time_at_today(config.dailynews_latest_time, now)
+    if latest < _time_at_today(config.dailynews_time, now):
+        latest += timedelta(days=1)
+    return latest
 
 
 def _group_allowed(group_id: int) -> bool:
@@ -49,6 +60,26 @@ def _group_allowed(group_id: int) -> bool:
     if config.dailynews_group_mode == "whitelist":
         return group_id in group_ids
     return group_id not in group_ids
+
+
+async def _daily_news_is_today() -> bool:
+    if not config.dailynews_require_today:
+        return True
+
+    news_date = await fetch_daily_news_date(config.dailynews_api_url)
+    if news_date == date.today().isoformat():
+        return True
+
+    logger.info("Daily news is not updated yet: api date is {}", news_date or "<empty>")
+    return False
+
+
+async def _send_fresh_news_to_all_allowed_groups() -> bool:
+    if not await _daily_news_is_today():
+        return False
+
+    await _send_to_all_allowed_groups()
+    return True
 
 
 async def _send_to_all_allowed_groups() -> None:
@@ -105,7 +136,32 @@ async def _daily_news_scheduler() -> None:
         wait_seconds = max((run_at - datetime.now()).total_seconds(), 0)
         logger.info("Daily news next run at {}", run_at.strftime("%Y-%m-%d %H:%M:%S"))
         await asyncio.sleep(wait_seconds)
-        await _send_to_all_allowed_groups()
+        await _retry_send_until_fresh()
+
+
+async def _retry_send_until_fresh() -> None:
+    while True:
+        try:
+            if await _send_fresh_news_to_all_allowed_groups():
+                return
+        except DailyNewsError as exc:
+            logger.warning("Daily news freshness check failed: {}", exc)
+
+        now = datetime.now()
+        try:
+            latest = _latest_run_at(now)
+        except ValueError as exc:
+            logger.error("Daily news scheduler disabled: {}", exc)
+            return
+
+        if now >= latest:
+            logger.warning("Daily news skipped: still not updated before {}", config.dailynews_latest_time)
+            return
+
+        retry_seconds = max(config.dailynews_retry_interval_minutes, 1) * 60
+        wait_seconds = min(retry_seconds, max((latest - now).total_seconds(), 0))
+        logger.info("Daily news will retry in {} seconds", int(wait_seconds))
+        await asyncio.sleep(wait_seconds)
 
 
 @driver.on_startup
@@ -118,6 +174,12 @@ async def start_daily_news_scheduler() -> None:
 
 @today_news.handle()
 async def handle_today_news(event: MessageEvent) -> None:
+    try:
+        if not await _daily_news_is_today():
+            await today_news.finish("今日新闻还没有更新，请稍后再试。")
+    except DailyNewsError as exc:
+        await today_news.finish(str(exc))
+
     try:
         message = _build_daily_news_message()
     except DailyNewsError as exc:

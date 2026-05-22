@@ -1,0 +1,3 @@
+[tool.nonebot]
+plugin_dirs = ["src/plugins"]
+plugins = []

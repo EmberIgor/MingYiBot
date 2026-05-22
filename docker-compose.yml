@@ -1,0 +1,17 @@
+services:
+  bot:
+    build: .
+    container_name: mingyi-bot
+    restart: unless-stopped
+    environment:
+      DRIVER: "~fastapi"
+      HOST: "0.0.0.0"
+      PORT: "8080"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+      COMMAND_START: '["/"]'
+      ONEBOT_ACCESS_TOKEN: "${ONEBOT_ACCESS_TOKEN:-}"
+    ports:
+      - "${BOT_PORT:-8080}:8080"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs

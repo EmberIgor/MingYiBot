@@ -63,6 +63,8 @@ def _session_id(event: MessageEvent) -> str:
 
 @role_command.handle()
 async def handle_role_command(event: MessageEvent, args: Message = CommandArg()) -> None:
+    chat_handler.cleanup_expired()
+
     scope = _conversation_scope(event)
     command = args.extract_plain_text().strip()
 

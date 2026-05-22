@@ -1,4 +1,5 @@
 import re
+import time
 from typing import Any
 
 from nonebot import logger
@@ -13,11 +14,15 @@ class ChatHandler:
         self.role_store = role_store
         self.client: Any | None = self._create_client()
         self.histories: dict[str, list[dict[str, str]]] = {}
+        self.last_active_at: dict[str, float] = {}
 
     async def ask(self, message: str, session_id: str, role_name: str) -> str:
+        self.cleanup_expired()
+
         if not self.client or not self.config.aichat_model:
             return "AI 聊天还没有配置好，请设置 AICHAT_KEY、AICHAT_BASEURL 和 AICHAT_MODEL。"
 
+        self._touch(session_id)
         system_prompt = self.role_store.get_prompt(role_name)
         history = self.histories.setdefault(
             session_id,
@@ -49,14 +54,36 @@ class ChatHandler:
         content = re.sub(r"^[\r\n]+|[\r\n]+$", "", content.strip())
         history.append({"role": "assistant", "content": content})
         self._trim_history(session_id, system_prompt)
+        self._touch(session_id)
         return content
 
     def clear_history(self, session_id: str | None = None) -> None:
         if session_id is None:
             self.histories.clear()
+            self.last_active_at.clear()
             return
 
         self.histories.pop(session_id, None)
+        self.last_active_at.pop(session_id, None)
+
+    def cleanup_expired(self) -> int:
+        ttl_seconds = self.config.aichat_session_ttl_minutes * 60
+        if ttl_seconds <= 0:
+            return 0
+
+        expires_before = time.time() - ttl_seconds
+        expired_session_ids = [
+            session_id
+            for session_id, last_active_at in self.last_active_at.items()
+            if last_active_at < expires_before
+        ]
+        for session_id in expired_session_ids:
+            self.clear_history(session_id)
+
+        if expired_session_ids:
+            logger.info("Cleaned {} expired AI chat sessions", len(expired_session_ids))
+
+        return len(expired_session_ids)
 
     def _trim_history(self, session_id: str, system_prompt: str) -> None:
         history_limit = max(self.config.aichat_history_limit, 2)
@@ -82,3 +109,6 @@ class ChatHandler:
             api_key=self.config.aichat_key,
             base_url=self.config.aichat_baseurl,
         )
+
+    def _touch(self, session_id: str) -> None:
+        self.last_active_at[session_id] = time.time()

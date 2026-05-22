@@ -1,9 +1,9 @@
 import asyncio
+import re
 from datetime import datetime, timedelta
 
-from nonebot import get_bots, get_driver, get_plugin_config, logger, on_command
-from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment
-from nonebot.params import CommandArg
+from nonebot import get_bots, get_driver, get_plugin_config, logger, on_regex
+from nonebot.adapters.onebot.v11 import Bot, MessageEvent, MessageSegment
 from nonebot.plugin import PluginMetadata
 
 from .config import Config
@@ -18,19 +18,19 @@ from .data_source import (
 __plugin_meta__ = PluginMetadata(
     name="sunset",
     description="查询指定地点两日内火烧云分析信息。",
-    usage="/sun 上海\n/火烧云 北京",
+    usage="sun 上海\n火烧云 北京",
     config=Config,
 )
 
 
 config = get_plugin_config(Config)
 driver = get_driver()
-sun_command = on_command("sun", aliases={"火烧云"}, priority=20, block=True)
+sun_command = on_regex(r"^/?(?:sun|火烧云)(?:\s+|$)(.*)$", priority=20, block=True)
 
 
 @sun_command.handle()
-async def handle_sun(event: MessageEvent, args: Message = CommandArg()) -> None:
-    location = args.extract_plain_text().strip() or config.sunset_default_city
+async def handle_sun(event: MessageEvent) -> None:
+    location = _extract_location(event.get_plaintext()) or config.sunset_default_city
 
     try:
         report = await build_sunset_report(
@@ -42,7 +42,11 @@ async def handle_sun(event: MessageEvent, args: Message = CommandArg()) -> None:
     except SunsetError as exc:
         await sun_command.finish(str(exc))
 
-    await sun_command.finish(MessageSegment.text(report), at_sender=True)
+    await sun_command.finish(MessageSegment.text(report))
+
+
+def _extract_location(message: str) -> str:
+    return re.sub(r"^/?(?:sun|火烧云)(?:\s+|$)", "", message, count=1).strip()
 
 
 def _parse_notify_time(value: str) -> tuple[int, int]:

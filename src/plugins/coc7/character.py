@@ -3,25 +3,24 @@ import random
 
 def build_investigator() -> str:
     attributes = {
-        "STR": _roll_3d6() * 5,
-        "CON": _roll_3d6() * 5,
-        "POW": _roll_3d6() * 5,
-        "DEX": _roll_3d6() * 5,
-        "APP": _roll_3d6() * 5,
-        "SIZ": _roll_2d6_plus_6() * 5,
-        "INT": _roll_2d6_plus_6() * 5,
-        "EDU": _roll_2d6_plus_6() * 5,
-        "LUCK": _roll_3d6() * 5,
+        "力量": _roll_3d6() * 5,
+        "体质": _roll_3d6() * 5,
+        "意志": _roll_3d6() * 5,
+        "敏捷": _roll_3d6() * 5,
+        "外貌": _roll_3d6() * 5,
+        "体型": _roll_2d6_plus_6() * 5,
+        "智力": _roll_2d6_plus_6() * 5,
+        "教育": _roll_2d6_plus_6() * 5,
+        "幸运": _roll_3d6() * 5,
     }
-    hp = (attributes["CON"] + attributes["SIZ"]) // 10
-    mp = attributes["POW"] // 5
-    san = attributes["POW"]
+    hp = (attributes["体质"] + attributes["体型"]) // 10
+    mp = attributes["意志"] // 5
+    san = attributes["意志"]
 
     lines = [
         "COC7 快速调查员",
         " ".join(f"{name}:{value}" for name, value in attributes.items()),
-        f"HP:{hp} MP:{mp} SAN:{san}",
-        "说明: 未包含职业、技能点、年龄修正和背景字段。",
+        f"生命值:{hp} 魔法值:{mp} 理智:{san}",
     ]
     return "\n".join(lines)
 

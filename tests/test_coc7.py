@@ -33,8 +33,9 @@ class Coc7TestCase(unittest.TestCase):
     def test_quick_investigator_contains_core_fields(self) -> None:
         output = build_investigator()
 
-        for field in ["STR", "CON", "POW", "DEX", "APP", "SIZ", "INT", "EDU", "LUCK", "HP", "MP", "SAN"]:
+        for field in ["力量", "体质", "意志", "敏捷", "外貌", "体型", "智力", "教育", "幸运", "生命值", "魔法值", "理智"]:
             self.assertIn(f"{field}:", output)
+        self.assertNotIn("说明:", output)
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ services:
       DRIVER: "~fastapi"
       HOST: "0.0.0.0"
       PORT: "8080"
+      TZ: "${TZ:-Asia/Hong_Kong}"
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
       COMMAND_START: '["/"]'
       ONEBOT_ACCESS_TOKEN: "${ONEBOT_ACCESS_TOKEN:-}"

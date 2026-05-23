@@ -102,7 +102,8 @@ class ChatHandler:
 
         try:
             from openai import AsyncOpenAI
-        except ImportError:
+        except ImportError as exc:
+            logger.warning("AI chat client disabled because openai package is unavailable: {}", exc)
             return None
 
         return AsyncOpenAI(

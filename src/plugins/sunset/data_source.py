@@ -7,6 +7,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from nonebot import logger
+
 
 SunsetEvent = Literal["rise_1", "set_1", "rise_2", "set_2"]
 
@@ -149,6 +151,12 @@ def _fetch_event_sync(
             raise SunsetError("接口返回格式异常")
         return event, data
     except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError, SunsetError) as exc:
+        logger.warning(
+            "Sunset API request failed for location {} event {}: {}",
+            location,
+            event,
+            exc,
+        )
         return event, {"status": "error", "message": str(exc)}
 
 

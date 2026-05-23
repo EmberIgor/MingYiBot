@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from nonebot import on_message
+from nonebot import logger, on_message
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message
 from nonebot.plugin import PluginMetadata
 
@@ -43,4 +43,11 @@ async def handle_repeater(event: GroupMessageEvent) -> None:
     state.count += 1
     if state.count >= 2 and not state.repeated:
         state.repeated = True
-        await repeater.send(state.message)
+        try:
+            await repeater.send(state.message)
+        except Exception as exc:
+            logger.exception(
+                "Repeater failed to send message in group {}: {}",
+                event.group_id,
+                exc,
+            )

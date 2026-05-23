@@ -178,11 +178,13 @@ async def handle_today_news(event: MessageEvent) -> None:
         if not await _daily_news_is_today():
             await today_news.finish("今日新闻还没有更新，请稍后再试。")
     except DailyNewsError as exc:
+        logger.warning("Daily news command freshness check failed: {}", exc)
         await today_news.finish(str(exc))
 
     try:
         message = _build_daily_news_message()
     except DailyNewsError as exc:
+        logger.warning("Daily news command message build failed: {}", exc)
         await today_news.finish(str(exc))
 
     if isinstance(event, GroupMessageEvent) and not _group_allowed(event.group_id):

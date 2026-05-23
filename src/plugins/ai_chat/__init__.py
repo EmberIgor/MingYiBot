@@ -1,4 +1,4 @@
-from nonebot import get_plugin_config, on_command, on_message
+from nonebot import get_plugin_config, logger, on_command, on_message
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageEvent, MessageSegment
 from nonebot.params import CommandArg
 from nonebot.plugin import PluginMetadata
@@ -74,7 +74,11 @@ async def handle_role_command(event: MessageEvent, args: Message = CommandArg())
         await role_command.finish(f"当前角色：{current}\n可用角色：{roles}")
 
     if command in {"重载", "reload"}:
-        role_store.reload()
+        try:
+            role_store.reload()
+        except Exception as exc:
+            logger.exception("AI role preset reload failed: {}", exc)
+            await role_command.finish("AI 角色预设重载失败，请检查角色配置文件。")
         selected_roles.pop(scope, None)
         chat_handler.clear_history()
         await role_command.finish("AI 角色预设已重载，当前会话角色已恢复为默认角色。")

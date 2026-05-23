@@ -40,6 +40,7 @@ async def handle_sun(event: MessageEvent) -> None:
             timeout_seconds=config.sunset_timeout_seconds,
         )
     except SunsetError as exc:
+        logger.warning("Sunset command failed for location {}: {}", location, exc)
         await sun_command.finish(str(exc))
 
     await sun_command.finish(MessageSegment.text(report))

@@ -45,7 +45,8 @@ class RuleAnswerer:
             return None
         try:
             from openai import AsyncOpenAI
-        except ImportError:
+        except ImportError as exc:
+            logger.warning("COC7 rule answer client disabled because openai package is unavailable: {}", exc)
             return None
         return AsyncOpenAI(
             api_key=self.config.effective_ai_key,

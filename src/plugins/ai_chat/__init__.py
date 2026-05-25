@@ -1,4 +1,6 @@
-from nonebot import get_plugin_config, logger, on_command, on_message
+import re
+
+from nonebot import get_plugin_config, logger, on_command, on_message, on_regex
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageEvent, MessageSegment
 from nonebot.params import CommandArg
 from nonebot.plugin import PluginMetadata
@@ -21,6 +23,7 @@ chat_handler = ChatHandler(config, role_store)
 selected_roles: dict[str, str] = {}
 
 role_command = on_command("ai角色", aliases={"聊天角色", "角色"}, priority=20, block=True)
+role_alias_command = on_regex(r"^(?:聊天角色|角色)(?:\s+|$)(.*)$", priority=20, block=True)
 ai_chat = on_message(to_me(), priority=100, block=True)
 
 
@@ -63,36 +66,45 @@ def _session_id(event: MessageEvent) -> str:
 
 @role_command.handle()
 async def handle_role_command(event: MessageEvent, args: Message = CommandArg()) -> None:
+    await _handle_role_command(event, args.extract_plain_text().strip(), role_command)
+
+
+@role_alias_command.handle()
+async def handle_role_alias_command(event: MessageEvent) -> None:
+    command = re.sub(r"^(?:聊天角色|角色)(?:\s+|$)", "", event.get_plaintext(), count=1).strip()
+    await _handle_role_command(event, command, role_alias_command)
+
+
+async def _handle_role_command(event: MessageEvent, command: str, matcher) -> None:
     chat_handler.cleanup_expired()
 
     scope = _conversation_scope(event)
-    command = args.extract_plain_text().strip()
 
     if not command or command in {"列表", "list"}:
         current = _current_role(scope)
         roles = "、".join(role_store.list_roles())
-        await role_command.finish(f"当前角色：{current}\n可用角色：{roles}")
+        await matcher.finish(f"当前角色：{current}\n可用角色：{roles}")
 
     if command in {"重载", "reload"}:
         try:
             role_store.reload()
         except Exception as exc:
             logger.exception("AI role preset reload failed: {}", exc)
-            await role_command.finish("AI 角色预设重载失败，请检查角色配置文件。")
+            await matcher.finish("AI 角色预设重载失败，请检查角色配置文件。")
         selected_roles.pop(scope, None)
         chat_handler.clear_history()
-        await role_command.finish("AI 角色预设已重载，当前会话角色已恢复为默认角色。")
+        await matcher.finish("AI 角色预设已重载，当前会话角色已恢复为默认角色。")
 
     if command in {"重置", "reset", "清空"}:
         chat_handler.clear_history(_session_id(event))
-        await role_command.finish("当前 AI 聊天上下文已清空。")
+        await matcher.finish("当前 AI 聊天上下文已清空。")
 
     if not role_store.has_role(command):
-        await role_command.finish(f"没有找到角色：{command}\n可用角色：{'、'.join(role_store.list_roles())}")
+        await matcher.finish(f"没有找到角色：{command}\n可用角色：{'、'.join(role_store.list_roles())}")
 
     selected_roles[scope] = command
     chat_handler.clear_history(_session_id(event))
-    await role_command.finish(f"已切换 AI 聊天角色：{command}")
+    await matcher.finish(f"已切换 AI 聊天角色：{command}")
 
 
 @ai_chat.handle()

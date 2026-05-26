@@ -58,7 +58,7 @@ async def fetch_sunset_events(
 ) -> list[tuple[SunsetEvent, dict[str, Any]]]:
     city = location.strip()
     if not city:
-        raise SunsetError("请输入地点，例如：/sun 上海")
+        raise SunsetError("请输入地点，例如：.sun 上海")
 
     tasks = [_fetch_event(api_url, city, event, model, timeout_seconds) for event in EVENTS]
     return list(await asyncio.gather(*tasks))

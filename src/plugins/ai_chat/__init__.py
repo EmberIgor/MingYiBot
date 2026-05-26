@@ -1,6 +1,7 @@
-from nonebot import get_plugin_config, logger, on_command, on_message
+import re
+
+from nonebot import get_plugin_config, logger, on_message, on_regex
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageEvent, MessageSegment
-from nonebot.params import CommandArg
 from nonebot.plugin import PluginMetadata
 from nonebot.rule import to_me
 
@@ -11,7 +12,7 @@ from .role_store import RoleStore
 __plugin_meta__ = PluginMetadata(
     name="ai_chat",
     description="在机器人被 @ 且未命中其他命令时提供 AI 聊天兜底能力",
-    usage="@机器人 聊天内容\n/ai [角色名|列表|重载|重置]",
+    usage="@机器人 聊天内容\n.ai [角色名|列表|重载|重置]",
     config=Config,
 )
 
@@ -20,7 +21,7 @@ role_store = RoleStore(config.aichat_roles_path, config.aichat_default_role)
 chat_handler = ChatHandler(config, role_store)
 selected_roles: dict[str, str] = {}
 
-role_command = on_command("ai", priority=20, block=True)
+role_command = on_regex(r"^[.。]ai(?:\s+|$)(.*)$", priority=20, block=True)
 ai_chat = on_message(to_me(), priority=100, block=True)
 
 
@@ -62,8 +63,12 @@ def _session_id(event: MessageEvent) -> str:
 
 
 @role_command.handle()
-async def handle_role_command(event: MessageEvent, args: Message = CommandArg()) -> None:
-    await _handle_role_command(event, args.extract_plain_text().strip(), role_command)
+async def handle_role_command(event: MessageEvent) -> None:
+    await _handle_role_command(event, _parse_role_command(event.get_plaintext()), role_command)
+
+
+def _parse_role_command(message: str) -> str:
+    return re.sub(r"^[.。]ai(?:\s+|$)", "", message, count=1).strip()
 
 
 async def _handle_role_command(event: MessageEvent, command: str, matcher) -> None:

@@ -12,14 +12,14 @@ from .data_source import DailyNewsError, build_daily_news_image_url, fetch_daily
 __plugin_meta__ = PluginMetadata(
     name="daily_news",
     description="每天定时向群发送 60s 每日新闻，并支持“今日新闻”手动触发。",
-    usage="今日新闻",
+    usage="今日新闻\n.今日新闻",
     config=Config,
 )
 
 
 config = get_plugin_config(Config)
 driver = get_driver()
-today_news = on_regex(r"^/?今日新闻$", priority=20, block=True)
+today_news = on_regex(r"^(?:[.。])?今日新闻$", priority=20, block=True)
 
 
 def _parse_send_time(value: str) -> tuple[int, int]:

@@ -18,14 +18,14 @@ from .data_source import (
 __plugin_meta__ = PluginMetadata(
     name="sunset",
     description="查询指定地点两日内火烧云分析信息。",
-    usage="sun 上海\n火烧云 北京",
+    usage="sun 上海\n.sun 上海\n火烧云 北京\n.火烧云 北京",
     config=Config,
 )
 
 
 config = get_plugin_config(Config)
 driver = get_driver()
-sun_command = on_regex(r"^/?(?:sun|火烧云)(?:\s+|$)(.*)$", priority=20, block=True)
+sun_command = on_regex(r"^(?:[.。])?(?:sun|火烧云)(?:\s+|$)(.*)$", priority=20, block=True)
 
 
 @sun_command.handle()
@@ -47,7 +47,7 @@ async def handle_sun(event: MessageEvent) -> None:
 
 
 def _extract_location(message: str) -> str:
-    return re.sub(r"^/?(?:sun|火烧云)(?:\s+|$)", "", message, count=1).strip()
+    return re.sub(r"^(?:[.。])?(?:sun|火烧云)(?:\s+|$)", "", message, count=1).strip()
 
 
 def _parse_notify_time(value: str) -> tuple[int, int]:

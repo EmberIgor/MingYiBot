@@ -138,6 +138,18 @@ def format_check(result: CheckResult) -> str:
     )
 
 
+def format_roll(result: DiceRoll) -> str:
+    values = _format_roll_values(result.detail)
+    return f"{result.expression}的投掷结果是[{values}]\n最终结果为：{result.total}"
+
+
+def _format_roll_values(detail: str) -> str:
+    rolls: list[str] = []
+    for values in re.findall(r"\[([\d,]+)\]", detail):
+        rolls.extend(value for value in values.split(",") if value)
+    return "，".join(rolls)
+
+
 def _d100_value(tens: int, unit: int) -> int:
     value = tens * 10 + unit
     return 100 if value == 0 else value

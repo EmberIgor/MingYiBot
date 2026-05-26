@@ -19,7 +19,7 @@ __plugin_meta__ = PluginMetadata(
 
 config = get_plugin_config(Config)
 driver = get_driver()
-today_news = on_regex(r"^/?(今日新闻|每日新闻|60s)$", priority=20, block=True)
+today_news = on_regex(r"^/?今日新闻$", priority=20, block=True)
 
 
 def _parse_send_time(value: str) -> tuple[int, int]:

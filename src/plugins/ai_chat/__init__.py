@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import re
+from typing import Any
 
 from nonebot import get_plugin_config, logger, on_command, on_message, on_regex
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageEvent, MessageSegment
@@ -7,7 +10,7 @@ from nonebot.plugin import PluginMetadata
 from nonebot.rule import to_me
 
 from .config import Config
-from .data_source import ChatHandler
+from .data_source import ChatContent, ChatHandler
 from .role_store import RoleStore
 
 __plugin_meta__ = PluginMetadata(
@@ -27,23 +30,48 @@ role_alias_command = on_regex(r"^(?:聊天角色|角色)(?:\s+|$)(.*)$", priorit
 ai_chat = on_message(to_me(), priority=100, block=True)
 
 
-def _extract_chat_text(message: Message, bot: Bot) -> str:
-    parts: list[str] = []
+def _extract_chat_prompt(message: Message, bot: Bot) -> tuple[ChatContent, str]:
+    content_parts: list[dict[str, Any]] = []
+    history_parts: list[str] = []
     for segment in message:
         if segment.type == "text":
-            text = segment.data.get("text", "").strip()
+            text = str(segment.data.get("text") or "").strip()
             if text:
-                parts.append(text)
+                content_parts.append({"type": "text", "text": text})
+                history_parts.append(text)
         elif segment.type == "at":
             qq = str(segment.data.get("qq", ""))
             if qq and qq != str(bot.self_id):
-                parts.append(f"@{qq}")
+                mention = f"@{qq}"
+                content_parts.append({"type": "text", "text": mention})
+                history_parts.append(mention)
         elif segment.type == "image":
-            parts.append("[image]")
+            image_url = str(segment.data.get("url") or "").strip()
+            history_parts.append("[image]")
+            if image_url:
+                content_parts.append({"type": "image_url", "image_url": {"url": image_url}})
+            else:
+                content_parts.append({"type": "text", "text": "[image: missing url]"})
         else:
-            parts.append(f"[{segment.type}]")
+            placeholder = f"[{segment.type}]"
+            content_parts.append({"type": "text", "text": placeholder})
+            history_parts.append(placeholder)
 
-    return " ".join(parts).strip()
+    history_text = " ".join(history_parts).strip()
+    if not content_parts:
+        return "你好", "你好"
+
+    has_image = any(part.get("type") == "image_url" for part in content_parts)
+    has_text = any(part.get("type") == "text" and str(part.get("text", "")).strip() for part in content_parts)
+    if has_image and not has_text:
+        content_parts.insert(0, {"type": "text", "text": "请描述这张图片，或根据图片回答用户的问题。"})
+        history_text = history_text or "[image]"
+
+    if not has_image:
+        text = " ".join(str(part.get("text", "")).strip() for part in content_parts).strip()
+        return text or "你好", history_text or text or "你好"
+
+    return content_parts, history_text or "[image]"
 
 
 def _conversation_scope(event: MessageEvent) -> str:
@@ -109,6 +137,11 @@ async def _handle_role_command(event: MessageEvent, command: str, matcher) -> No
 
 @ai_chat.handle()
 async def handle_ai_chat(bot: Bot, event: MessageEvent) -> None:
-    prompt = _extract_chat_text(event.get_message(), bot) or "你好"
-    response = await chat_handler.ask(prompt, _session_id(event), _current_role(_conversation_scope(event)))
+    prompt, history_text = _extract_chat_prompt(event.get_message(), bot)
+    response = await chat_handler.ask(
+        prompt,
+        _session_id(event),
+        _current_role(_conversation_scope(event)),
+        history_text,
+    )
     await ai_chat.finish(MessageSegment.text(response), at_sender=True)

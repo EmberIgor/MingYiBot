@@ -64,7 +64,7 @@ ws://群晖IP:18080/onebot/v11/ws
 
 | 命令 | 说明 | 示例 |
 | --- | --- | --- |
-| `@机器人 内容` | 与 AI 对话。机器人会按“群/用户/角色”分别保留上下文。 | `@茗懿 帮我想一个跑团导入` |
+| `@机器人 内容` | 与 AI 对话，可附带图片。机器人会按“群/用户/角色”分别保留上下文。 | `@茗懿 帮我想一个跑团导入` |
 | `/ai角色` | 查看当前角色和可用角色。 | `/ai角色` |
 | `/ai角色 列表` | 查看当前角色和可用角色。 | `/ai角色 列表` |
 | `/ai角色 角色名` | 切换当前聊天角色，并清空当前角色会话上下文。 | `/ai角色 creative` |
@@ -124,13 +124,17 @@ ws://群晖IP:18080/onebot/v11/ws
 
 | 配置项 | 默认值 | 说明 |
 | --- | --- | --- |
-| `AICHAT_KEY` | 空 | OpenAI 兼容接口的 API Key。 |
-| `AICHAT_BASEURL` | 空 | OpenAI 兼容接口 Base URL。 |
-| `AICHAT_MODEL` | 空 | AI 聊天使用的模型名。 |
+| `AICHAT_KEY` | 空 | OpenAI 兼容接口的 API Key。使用 V-API 时填写令牌管理中的 Token。 |
+| `AICHAT_BASEURL` | 空 | OpenAI 兼容接口 Base URL。使用 V-API 时填写 `https://api.gpt.ge/v1`。 |
+| `AICHAT_MODEL` | 空 | AI 聊天使用的模型名；图片聊天需要选择支持图像分析的模型，例如 `gpt-4o`。 |
 | `AICHAT_DEFAULT_ROLE` | `default` | 默认聊天角色。 |
 | `AICHAT_HISTORY_LIMIT` | `12` | 每个会话保留的消息条数，包含 system 消息。 |
+| `AICHAT_IMAGE_MODE` | `url` | 图片发送方式。`url` 直接传 OneBot 图片 URL；`base64` 会先下载图片并转成 data URL，兼容无法访问 QQ 临时图的上游。 |
+| `AICHAT_IMAGE_MAX_BYTES` | `5242880` | `base64` 模式下允许下载的单张图片最大字节数。 |
 | `AICHAT_ROLES_PATH` | `data/ai_chat_roles.json` | 角色配置文件路径。首次启动会自动生成默认角色文件。 |
 | `AICHAT_SESSION_TTL_MINUTES` | `1440` | 会话上下文过期时间，单位分钟。 |
+
+图片聊天会按 OpenAI 多模态 `image_url` 内容块发送给模型；请把 `AICHAT_MODEL` 配成支持视觉输入的模型。如果上游 OpenAI 兼容服务无法访问 QQ 图片临时 URL，可以把 `AICHAT_IMAGE_MODE` 改成 `base64`。
 
 ### COC7 AI 规则助手配置
 

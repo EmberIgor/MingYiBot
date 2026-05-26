@@ -11,5 +11,7 @@ class Config(BaseModel):
     aichat_history_limit: int = 12
     aichat_image_mode: Literal["url", "base64"] = "url"
     aichat_image_max_bytes: int = 5 * 1024 * 1024
+    aichat_web_search_enabled: bool = False
+    aichat_web_search_max_tool_calls: int = 1
     aichat_roles_path: str = "data/ai_chat_roles.json"
     aichat_session_ttl_minutes: int = 1440

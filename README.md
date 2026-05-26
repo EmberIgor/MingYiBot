@@ -131,10 +131,14 @@ ws://群晖IP:18080/onebot/v11/ws
 | `AICHAT_HISTORY_LIMIT` | `12` | 每个会话保留的消息条数，包含 system 消息。 |
 | `AICHAT_IMAGE_MODE` | `url` | 图片发送方式。`url` 直接传 OneBot 图片 URL；`base64` 会先下载图片并转成 data URL，兼容无法访问 QQ 临时图的上游。 |
 | `AICHAT_IMAGE_MAX_BYTES` | `5242880` | `base64` 模式下允许下载的单张图片最大字节数。 |
+| `AICHAT_WEB_SEARCH_ENABLED` | `false` | 是否通过 Responses API 开启火山方舟 Web Search 联网搜索工具。 |
+| `AICHAT_WEB_SEARCH_MAX_TOOL_CALLS` | `1` | 联网搜索工具最多调用轮数；设为 `0` 表示不传限制。 |
 | `AICHAT_ROLES_PATH` | `data/ai_chat_roles.json` | 角色配置文件路径。首次启动会自动生成默认角色文件。 |
 | `AICHAT_SESSION_TTL_MINUTES` | `1440` | 会话上下文过期时间，单位分钟。 |
 
 图片聊天会按 OpenAI 多模态 `image_url` 内容块发送给模型；请把 `AICHAT_MODEL` 配成支持视觉输入的模型。如果上游 OpenAI 兼容服务无法访问 QQ 图片临时 URL，可以把 `AICHAT_IMAGE_MODE` 改成 `base64`。
+
+火山方舟 Web Search 需要先在火山控制台开通/授权联网内容插件，然后配置 `AICHAT_BASEURL=https://ark.cn-beijing.volces.com/api/v3`、火山方舟模型名和 `AICHAT_WEB_SEARCH_ENABLED=true`。开关打开后，AI 聊天会改走 Responses API 并传入 `web_search` 工具；未开启时仍使用普通 Chat Completions。
 
 ### COC7 AI 规则助手配置
 

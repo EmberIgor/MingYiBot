@@ -7,7 +7,6 @@ from nonebot import get_plugin_config, logger, on_command, on_message, on_regex
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageEvent, MessageSegment
 from nonebot.params import CommandArg
 from nonebot.plugin import PluginMetadata
-from nonebot.rule import to_me
 
 from .config import Config
 from .data_source import ChatContent, ChatHandler
@@ -27,7 +26,20 @@ selected_roles: dict[str, str] = {}
 
 role_command = on_command("ai角色", aliases={"聊天角色", "角色"}, priority=20, block=True)
 role_alias_command = on_regex(r"^(?:聊天角色|角色)(?:\s+|$)(.*)$", priority=20, block=True)
-ai_chat = on_message(to_me(), priority=100, block=True)
+
+
+async def _is_directed_to_bot(bot: Bot, event: MessageEvent) -> bool:
+    if event.is_tome():
+        return True
+
+    self_id = str(bot.self_id)
+    return any(
+        segment.type == "at" and str(segment.data.get("qq", "")) == self_id
+        for segment in event.get_message()
+    )
+
+
+ai_chat = on_message(_is_directed_to_bot, priority=100, block=True)
 
 
 def _extract_chat_prompt(message: Message, bot: Bot) -> tuple[ChatContent, str]:

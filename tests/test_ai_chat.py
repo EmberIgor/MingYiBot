@@ -14,6 +14,7 @@ if "nonebot" not in sys.modules:
     nonebot.logger = SimpleNamespace(
         exception=lambda *args, **kwargs: None,
         info=lambda *args, **kwargs: None,
+        warning=lambda *args, **kwargs: None,
     )
     sys.modules["nonebot"] = nonebot
     _STUBBED_NONEBOT = True
@@ -75,6 +76,7 @@ class AiChatHandlerTestCase(unittest.IsolatedAsyncioTestCase):
             aichat_model="vision-model",
             aichat_session_ttl_minutes=1440,
             aichat_history_limit=12,
+            aichat_web_search_enabled=False,
         )
         handler = ai_chat_data_source.ChatHandler(config, _FakeRoleStore())
         client = _FakeClient()
@@ -109,6 +111,7 @@ class AiChatHandlerTestCase(unittest.IsolatedAsyncioTestCase):
             aichat_history_limit=12,
             aichat_image_mode="base64",
             aichat_image_max_bytes=123,
+            aichat_web_search_enabled=False,
         )
         handler = ai_chat_data_source.ChatHandler(config, _FakeRoleStore())
         client = _FakeClient()
@@ -141,6 +144,44 @@ class AiChatHandlerTestCase(unittest.IsolatedAsyncioTestCase):
             "这张图里有什么？ [image]",
         )
 
+    async def test_web_search_uses_responses_api_tool(self) -> None:
+        config = SimpleNamespace(
+            aichat_key="ark-key",
+            aichat_baseurl="https://ark.cn-beijing.volces.com/api/v3",
+            aichat_model="doubao-seed-2-0-lite-260215",
+            aichat_session_ttl_minutes=1440,
+            aichat_history_limit=12,
+            aichat_web_search_enabled=True,
+            aichat_web_search_max_tool_calls=2,
+            aichat_image_mode="url",
+        )
+        handler = ai_chat_data_source.ChatHandler(config, _FakeRoleStore())
+        calls = []
+
+        def fake_post(url, api_key, payload):
+            calls.append((url, api_key, payload))
+            return {
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": " 搜索结果摘要。 "}],
+                    }
+                ]
+            }
+
+        with patch.object(ai_chat_data_source, "_post_responses_request", side_effect=fake_post):
+            response = await handler.ask("今天有什么热点新闻？", "session-1", "default")
+
+        self.assertEqual(response, "搜索结果摘要。")
+        url, api_key, payload = calls[0]
+        self.assertEqual(url, "https://ark.cn-beijing.volces.com/api/v3/responses")
+        self.assertEqual(api_key, "ark-key")
+        self.assertEqual(payload["tools"], [{"type": "web_search"}])
+        self.assertEqual(payload["max_tool_calls"], 2)
+        self.assertEqual(payload["instructions"], "system:default")
+        self.assertEqual(payload["input"][-1]["content"][0]["text"], "今天有什么热点新闻？")
+        self.assertEqual(handler.histories["session-1"][-2]["content"], "今天有什么热点新闻？")
+
 
 class AiChatConfigTestCase(unittest.TestCase):
     def test_vapi_base_url_is_normalized_for_openai_sdk(self) -> None:
@@ -151,6 +192,18 @@ class AiChatConfigTestCase(unittest.TestCase):
         self.assertEqual(
             normalize("https://api.gpt.ge/v1/chat/completions"),
             "https://api.gpt.ge/v1",
+        )
+
+    def test_responses_api_url_is_derived_from_base_url(self) -> None:
+        responses_url = ai_chat_data_source._responses_api_url
+
+        self.assertEqual(
+            responses_url("https://ark.cn-beijing.volces.com/api/v3"),
+            "https://ark.cn-beijing.volces.com/api/v3/responses",
+        )
+        self.assertEqual(
+            responses_url("https://ark.cn-beijing.volces.com/api/v3/chat/completions"),
+            "https://ark.cn-beijing.volces.com/api/v3/responses",
         )
 
 

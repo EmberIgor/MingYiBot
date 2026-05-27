@@ -25,8 +25,9 @@ role_command = on_regex(r"^[.。]ai(?:\s+|$)(.*)$", priority=20, block=True)
 ai_chat = on_message(to_me(), priority=100, block=True)
 
 
-def _extract_chat_text(message: Message, bot: Bot) -> str:
+def _extract_chat_content(message: Message, bot: Bot) -> tuple[str, list[str]]:
     parts: list[str] = []
+    image_urls: list[str] = []
     for segment in message:
         if segment.type == "text":
             text = segment.data.get("text", "").strip()
@@ -37,11 +38,14 @@ def _extract_chat_text(message: Message, bot: Bot) -> str:
             if qq and qq != str(bot.self_id):
                 parts.append(f"@{qq}")
         elif segment.type == "image":
+            image_url = str(segment.data.get("url") or "").strip()
+            if image_url.startswith(("http://", "https://", "data:")):
+                image_urls.append(image_url)
             parts.append("[image]")
         else:
             parts.append(f"[{segment.type}]")
 
-    return " ".join(parts).strip()
+    return " ".join(parts).strip(), image_urls
 
 
 def _conversation_scope(event: MessageEvent) -> str:
@@ -105,6 +109,12 @@ async def _handle_role_command(event: MessageEvent, command: str, matcher) -> No
 
 @ai_chat.handle()
 async def handle_ai_chat(bot: Bot, event: MessageEvent) -> None:
-    prompt = _extract_chat_text(event.get_message(), bot) or "你好"
-    response = await chat_handler.ask(prompt, _session_id(event), _current_role(_conversation_scope(event)))
+    prompt, image_urls = _extract_chat_content(event.get_message(), bot)
+    prompt = prompt or "你好"
+    response = await chat_handler.ask(
+        prompt,
+        _session_id(event),
+        _current_role(_conversation_scope(event)),
+        image_urls,
+    )
     await ai_chat.finish(MessageSegment.text(response), at_sender=True)

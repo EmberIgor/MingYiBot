@@ -117,8 +117,9 @@ ws://群晖IP:18080/onebot/v11/ws
 | 配置项 | 默认值 | 说明 |
 | --- | --- | --- |
 | `AICHAT_KEY` | 空 | OpenAI 兼容接口的 API Key。 |
-| `AICHAT_BASEURL` | 空 | OpenAI 兼容接口 Base URL。 |
+| `AICHAT_BASEURL` | 空 | OpenAI 兼容接口 Base URL，例如 `https://api.gptsapi.net/v1`。不要填到 `/responses`。 |
 | `AICHAT_MODEL` | 空 | AI 聊天使用的模型名。 |
+| `AICHAT_WEB_SEARCH` | `false` | 是否启用 Responses API 的 `web_search` 联网工具。图片解析始终走 Responses API 的 `input_image`。 |
 | `AICHAT_DEFAULT_ROLE` | `default` | 默认聊天角色。 |
 | `AICHAT_HISTORY_LIMIT` | `12` | 每个会话保留的消息条数，包含 system 消息。 |
 | `AICHAT_ROLES_PATH` | `data/ai_chat_roles.json` | 角色配置文件路径。首次启动会自动生成默认角色文件。 |

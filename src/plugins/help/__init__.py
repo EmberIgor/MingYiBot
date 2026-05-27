@@ -4,18 +4,16 @@ from nonebot.plugin import PluginMetadata
 
 
 HELP_TEXT = """可用指令：
-.help、.帮助、。菜单 - 查看这份指令说明
-.ping、.状态 - 检查机器人是否在线
-今日新闻、.今日新闻、。今日新闻 - 获取今日 60s 新闻
-sun 上海、.sun 上海、。火烧云 广州 - 查询火烧云
-.r 2d6+3、.r1d100、。rd50 - 投骰
+.help - 查看这份指令说明
+.ping - 检查机器人是否在线
+.今日新闻 - 获取今日 60s 新闻
+.sun 上海 - 查询火烧云
+.r 2d6+3 - 投骰
 .ra 侦查 60 - COC7 普通检定
-.coc、.coc3、。coc 10 - 快速生成 COC7 调查员
+.coc - 快速生成 COC7 调查员
 .ai - 查看 AI 角色
 .ai 角色名 - 切换 AI 角色
-.ai 重置 - 清空当前 AI 上下文
-
-群聊中 @我 加内容，或私聊我，可以直接聊天。"""
+.ai 重置 - 清空当前 AI 上下文"""
 
 
 __plugin_meta__ = PluginMetadata(

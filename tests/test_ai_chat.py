@@ -1,5 +1,7 @@
 import asyncio
+import tempfile
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 
 import nonebot
@@ -9,9 +11,17 @@ nonebot.init()
 from nonebot.adapters.onebot.v11 import Message, MessageSegment
 from nonebot.adapters.onebot.v11.event import Reply
 from src.common.rules import message_mentions_bot
-from src.plugins.ai_chat import _build_prompt_with_reply, _extract_chat_content, _extract_reply_context
+from src.plugins.ai_chat import (
+    _build_prompt_with_reply,
+    _extract_chat_content,
+    _extract_reply_context,
+    _format_memory_list,
+    _parse_forget_command,
+    _parse_remember_command,
+)
 from src.plugins.ai_chat.config import Config
 from src.plugins.ai_chat.data_source import ChatHandler
+from src.plugins.ai_chat.memory_store import MemoryStore
 from src.plugins.ai_chat.role_store import DEFAULT_ROLES
 
 
@@ -21,17 +31,28 @@ class _RoleStore:
 
 
 class _Responses:
-    def __init__(self) -> None:
+    def __init__(self, responses: list[str] | None = None) -> None:
         self.calls: list[dict] = []
+        self.responses = responses or ["ok"]
 
     async def create(self, **kwargs):
         self.calls.append(kwargs)
-        return SimpleNamespace(output_text="ok")
+        response = self.responses[min(len(self.calls) - 1, len(self.responses) - 1)]
+        return SimpleNamespace(output_text=response)
 
 
 class _Client:
-    def __init__(self) -> None:
-        self.responses = _Responses()
+    def __init__(self, responses: list[str] | None = None) -> None:
+        self.responses = _Responses(responses)
+
+
+class _SummaryHandler(ChatHandler):
+    def __init__(self, config: Config, role_store: _RoleStore, memory_store: MemoryStore | None = None) -> None:
+        super().__init__(config, role_store, memory_store)
+        self.scheduled_summaries: list[tuple[str, list[dict[str, str]]]] = []
+
+    def _schedule_memory_summary(self, memory_scope: str, recent_turns: list[dict[str, str]]) -> None:
+        self.scheduled_summaries.append((memory_scope, recent_turns))
 
 
 class AiChatTestCase(unittest.TestCase):
@@ -85,6 +106,46 @@ class AiChatTestCase(unittest.TestCase):
             "用户引用了 茗懿 的消息：[image]\n用户当前消息：总结一下",
         )
 
+    def test_memory_command_helpers(self) -> None:
+        self.assertEqual(_parse_remember_command("记住 我喜欢简洁回答"), "我喜欢简洁回答")
+        self.assertEqual(_parse_remember_command("记住"), "")
+        self.assertIsNone(_parse_remember_command("jarvis"))
+        self.assertEqual(_parse_forget_command("忘记 1"), "1")
+        self.assertEqual(_parse_forget_command("忘记 全部"), "全部")
+        self.assertEqual(
+            _format_memory_list([{"id": "1", "content": "用户喜欢简洁回答"}]),
+            "当前长期记忆：\n1. 用户喜欢简洁回答",
+        )
+
+    def test_memory_store_adds_deduplicates_deletes_and_clears(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = MemoryStore(str(Path(temp_dir) / "memories.json"), max_items=20)
+
+            first = store.add_memory("user:1", "  用户喜欢简洁回答  ")
+            duplicate = store.add_memory("user:1", "用户喜欢简洁回答")
+
+            self.assertEqual(first["id"], duplicate["id"])
+            self.assertEqual(store.list_memories("user:1")[0]["content"], "用户喜欢简洁回答")
+            self.assertTrue(store.delete_memory("user:1", first["id"]))
+            self.assertFalse(store.delete_memory("user:1", first["id"]))
+            self.assertEqual(store.list_memories("user:1"), [])
+
+            store.add_memory("user:1", "用户正在做 QQ 机器人")
+            self.assertEqual(store.clear_memories("user:1"), 1)
+            self.assertEqual(store.clear_memories("user:1"), 0)
+
+    def test_memory_store_trims_to_max_items(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = MemoryStore(str(Path(temp_dir) / "memories.json"), max_items=2)
+
+            store.add_memory("user:1", "记忆一")
+            store.add_memory("user:1", "记忆二")
+            store.add_memory("user:1", "记忆三")
+
+            memories = store.list_memories("user:1")
+            self.assertEqual(len(memories), 2)
+            self.assertEqual([item["content"] for item in memories], ["记忆二", "记忆三"])
+
     def test_ask_uses_responses_api_with_web_search(self) -> None:
         config = Config(
             aichat_key="key",
@@ -126,6 +187,76 @@ class AiChatTestCase(unittest.TestCase):
 
         self.assertNotIn("tools", client.responses.calls[0])
         self.assertNotIn("tool_choice", client.responses.calls[0])
+
+    def test_ask_injects_enabled_user_memory_into_instructions(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = MemoryStore(str(Path(temp_dir) / "memories.json"))
+            store.add_memory("user:1", "用户喜欢简洁回答")
+            config = Config(
+                aichat_key="key",
+                aichat_baseurl="https://api.example/v1",
+                aichat_model="gpt-5",
+            )
+            handler = ChatHandler(config, _RoleStore(), store)
+            client = _Client()
+            handler.client = client
+
+            asyncio.run(handler.ask("hello", "session", "default", memory_scope="user:1"))
+
+            instructions = client.responses.calls[0]["instructions"]
+            self.assertIn("已知用户长期记忆", instructions)
+            self.assertIn("用户喜欢简洁回答", instructions)
+            self.assertIn("不要把它们当作实时事实来源", instructions)
+
+    def test_ask_skips_memory_when_disabled(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = MemoryStore(str(Path(temp_dir) / "memories.json"))
+            store.add_memory("user:1", "用户喜欢简洁回答")
+            config = Config(
+                aichat_key="key",
+                aichat_baseurl="https://api.example/v1",
+                aichat_model="gpt-5",
+                aichat_memory_enabled=False,
+            )
+            handler = ChatHandler(config, _RoleStore(), store)
+            client = _Client()
+            handler.client = client
+
+            asyncio.run(handler.ask("hello", "session", "default", memory_scope="user:1"))
+
+            self.assertNotIn("已知用户长期记忆", client.responses.calls[0]["instructions"])
+
+    def test_memory_summary_is_scheduled_every_three_turns(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = MemoryStore(str(Path(temp_dir) / "memories.json"))
+            config = Config(
+                aichat_key="key",
+                aichat_baseurl="https://api.example/v1",
+                aichat_model="gpt-5",
+                aichat_memory_summary_interval=3,
+            )
+            handler = _SummaryHandler(config, _RoleStore(), store)
+            handler.client = _Client()
+
+            async def run_turns() -> None:
+                await handler.ask("u1", "session", "default", memory_scope="user:1")
+                await handler.ask("u2", "session", "default", memory_scope="user:1")
+                await handler.ask("u3", "session", "default", memory_scope="user:1")
+
+            asyncio.run(run_turns())
+
+            self.assertEqual(len(handler.scheduled_summaries), 1)
+            memory_scope, recent_turns = handler.scheduled_summaries[0]
+            self.assertEqual(memory_scope, "user:1")
+            self.assertEqual([item["content"] for item in recent_turns], ["u1", "ok", "u2", "ok", "u3", "ok"])
+
+    def test_extract_memory_summaries_supports_json_response(self) -> None:
+        config = Config(aichat_key="key", aichat_baseurl="https://api.example/v1", aichat_model="gpt-5")
+        handler = ChatHandler(config, _RoleStore())
+
+        response = SimpleNamespace(output_text='{"memories":["用户喜欢短回答"],"forget":[]}')
+
+        self.assertEqual(handler._extract_memory_summaries(response), ["用户喜欢短回答"])
 
     def test_current_turn_images_are_sent_as_input_images(self) -> None:
         config = Config(

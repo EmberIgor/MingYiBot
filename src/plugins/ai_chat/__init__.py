@@ -15,7 +15,7 @@ from .role_store import RoleStore
 __plugin_meta__ = PluginMetadata(
     name="ai_chat",
     description="在机器人被 @ 且未命中其他命令时提供 AI 聊天兜底能力",
-    usage="@机器人 聊天内容\n.ai [角色名|列表|重载|重置]",
+    usage="@机器人 聊天内容\n.ai [角色名|列表|重载|重置|记忆|记住|忘记]",
     config=Config,
 )
 
@@ -94,6 +94,10 @@ def _session_id(event: MessageEvent) -> str:
     return f"{scope}:role:{_current_role(scope)}"
 
 
+def _memory_scope(event: MessageEvent) -> str:
+    return f"user:{event.user_id}"
+
+
 @role_command.handle()
 async def handle_role_command(event: MessageEvent) -> None:
     await _handle_role_command(event, _parse_role_command(event.get_plaintext()), role_command)
@@ -103,15 +107,74 @@ def _parse_role_command(message: str) -> str:
     return re.sub(r"^[.。]ai(?:\s+|$)", "", message, count=1).strip()
 
 
+def _parse_remember_command(command: str) -> str | None:
+    for prefix in ("记住", "remember"):
+        if command == prefix:
+            return ""
+        if command.startswith(f"{prefix} "):
+            return command.removeprefix(prefix).strip()
+    return None
+
+
+def _parse_forget_command(command: str) -> str | None:
+    for prefix in ("忘记", "forget"):
+        if command == prefix:
+            return ""
+        if command.startswith(f"{prefix} "):
+            return command.removeprefix(prefix).strip()
+    return None
+
+
+def _format_memory_list(memories: list[dict[str, str]]) -> str:
+    if not memories:
+        return "当前还没有长期记忆。"
+
+    lines = ["当前长期记忆："]
+    lines.extend(f"{item['id']}. {item['content']}" for item in memories)
+    return "\n".join(lines)
+
+
 async def _handle_role_command(event: MessageEvent, command: str, matcher) -> None:
     chat_handler.cleanup_expired()
 
     scope = _conversation_scope(event)
+    memory_scope = _memory_scope(event)
 
     if not command or command in {"列表", "list"}:
         current = _current_role(scope)
         roles = "、".join(role_store.list_roles())
         await matcher.finish(f"当前角色：{current}\n可用角色：{roles}")
+
+    if command in {"记忆", "memory"}:
+        if not chat_handler.memory_enabled():
+            await matcher.finish("AI 长期记忆未启用。")
+        await matcher.finish(_format_memory_list(chat_handler.list_memories(memory_scope)))
+
+    memory_content = _parse_remember_command(command)
+    if memory_content is not None:
+        if not chat_handler.memory_enabled():
+            await matcher.finish("AI 长期记忆未启用。")
+        if not memory_content:
+            await matcher.finish("请在 .ai 记住 后面写要保存的内容。")
+        item = chat_handler.remember(memory_scope, memory_content)
+        if item is None:
+            await matcher.finish("这条记忆是空的，没有保存。")
+        await matcher.finish(f"已记住：{item['content']}")
+
+    forget_target = _parse_forget_command(command)
+    if forget_target is not None:
+        if not chat_handler.memory_enabled():
+            await matcher.finish("AI 长期记忆未启用。")
+        if not forget_target:
+            await matcher.finish("请指定要忘记的记忆编号，或使用 .ai 忘记 全部。")
+        if forget_target in {"全部", "all"}:
+            count = chat_handler.clear_memories(memory_scope)
+            await matcher.finish(f"已清空 {count} 条长期记忆。")
+        if not forget_target.isdigit():
+            await matcher.finish("记忆编号应为数字，或使用 .ai 忘记 全部。")
+        if chat_handler.forget(memory_scope, forget_target):
+            await matcher.finish(f"已忘记第 {forget_target} 条长期记忆。")
+        await matcher.finish(f"没有找到编号为 {forget_target} 的长期记忆。")
 
     if command in {"重载", "reload"}:
         try:
@@ -146,5 +209,6 @@ async def handle_ai_chat(bot: Bot, event: MessageEvent) -> None:
         _session_id(event),
         _current_role(_conversation_scope(event)),
         [*reply_image_urls, *image_urls],
+        _memory_scope(event),
     )
     await ai_chat.finish(MessageSegment.text(response), at_sender=True)

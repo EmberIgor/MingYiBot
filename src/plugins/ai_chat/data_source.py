@@ -10,16 +10,19 @@ from typing import Any
 from nonebot import logger
 
 from .config import Config
+from .memory_store import MemoryStore
 from .role_store import RoleStore
 
 
 class ChatHandler:
-    def __init__(self, config: Config, role_store: RoleStore) -> None:
+    def __init__(self, config: Config, role_store: RoleStore, memory_store: MemoryStore | None = None) -> None:
         self.config = config
         self.role_store = role_store
         self.client: Any | None = self._create_client()
+        self.memory_store = memory_store or self._create_memory_store()
         self.histories: dict[str, list[dict[str, str]]] = {}
         self.last_active_at: dict[str, float] = {}
+        self.memory_turn_counts: dict[str, int] = {}
 
     async def ask(
         self,
@@ -27,6 +30,7 @@ class ChatHandler:
         session_id: str,
         role_name: str,
         image_urls: list[str] | None = None,
+        memory_scope: str | None = None,
     ) -> str:
         self.cleanup_expired()
 
@@ -43,10 +47,11 @@ class ChatHandler:
             history[:] = [{"role": "system", "content": system_prompt}]
 
         history.append({"role": "user", "content": message})
+        memories = self._memory_items(memory_scope)
 
         for retry in range(3):
             try:
-                response = await self._request_ai(system_prompt, history, image_urls or [])
+                response = await self._request_ai(system_prompt, history, image_urls or [], memories)
                 break
             except Exception as exc:
                 if retry == 2 or not self._is_retryable_error(exc):
@@ -68,6 +73,7 @@ class ChatHandler:
         history.append({"role": "assistant", "content": content})
         self._trim_history(session_id, system_prompt)
         self._touch(session_id)
+        self._schedule_memory_summary_if_needed(memory_scope, self.histories[session_id])
         return content
 
     def clear_history(self, session_id: str | None = None) -> None:
@@ -98,6 +104,91 @@ class ChatHandler:
 
         return len(expired_session_ids)
 
+    def memory_enabled(self) -> bool:
+        return self.config.aichat_memory_enabled and self.memory_store is not None
+
+    def list_memories(self, memory_scope: str) -> list[dict[str, str]]:
+        if not self.memory_enabled():
+            return []
+        return self.memory_store.list_memories(memory_scope)
+
+    def remember(self, memory_scope: str, content: str) -> dict[str, str] | None:
+        if not self.memory_enabled():
+            return None
+        return self.memory_store.add_memory(memory_scope, content)
+
+    def forget(self, memory_scope: str, memory_id: str) -> bool:
+        if not self.memory_enabled():
+            return False
+        return self.memory_store.delete_memory(memory_scope, memory_id)
+
+    def clear_memories(self, memory_scope: str) -> int:
+        if not self.memory_enabled():
+            return 0
+        return self.memory_store.clear_memories(memory_scope)
+
+    def _memory_items(self, memory_scope: str | None) -> list[dict[str, str]]:
+        if not memory_scope or not self.memory_enabled():
+            return []
+        return self.memory_store.list_memories(memory_scope)
+
+    def _schedule_memory_summary_if_needed(
+        self,
+        memory_scope: str | None,
+        history: list[dict[str, str]],
+    ) -> None:
+        if not memory_scope or not self.memory_enabled():
+            return
+
+        interval = self.config.aichat_memory_summary_interval
+        if interval <= 0:
+            return
+
+        self.memory_turn_counts[memory_scope] = self.memory_turn_counts.get(memory_scope, 0) + 1
+        if self.memory_turn_counts[memory_scope] % interval != 0:
+            return
+
+        recent_turns = self._recent_turns(history, max_turns=3)
+        if not recent_turns:
+            return
+
+        self._schedule_memory_summary(memory_scope, recent_turns)
+
+    def _schedule_memory_summary(self, memory_scope: str, recent_turns: list[dict[str, str]]) -> None:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            logger.warning("AI memory summary skipped because no running event loop is available")
+            return
+
+        loop.create_task(self._summarize_memory(memory_scope, recent_turns))
+
+    async def _summarize_memory(self, memory_scope: str, recent_turns: list[dict[str, str]]) -> None:
+        if not self.client or not self.config.aichat_model or not self.memory_enabled():
+            return
+
+        try:
+            response = await self.client.responses.create(
+                model=self.config.aichat_model,
+                instructions=self._memory_summary_instructions(),
+                input=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_text",
+                                "text": self._format_memory_summary_input(recent_turns),
+                            }
+                        ],
+                    }
+                ],
+                stream=False,
+            )
+            for memory in self._extract_memory_summaries(response):
+                self.memory_store.add_memory(memory_scope, memory)
+        except Exception as exc:
+            logger.exception("AI memory summary failed: {}", exc)
+
     def _trim_history(self, session_id: str, system_prompt: str) -> None:
         history_limit = max(self.config.aichat_history_limit, 2)
         history = self.histories[session_id]
@@ -114,6 +205,51 @@ class ChatHandler:
             {"role": "system", "content": system_prompt},
             *kept_messages,
         ]
+
+    def _recent_turns(self, history: list[dict[str, str]], max_turns: int) -> list[dict[str, str]]:
+        non_system = [item.copy() for item in history if item.get("role") in {"user", "assistant"}]
+        return non_system[-max_turns * 2 :]
+
+    def _memory_summary_instructions(self) -> str:
+        return (
+            "你负责从 QQ 聊天中提炼长期记忆。只记录用户长期偏好、身份背景、稳定事实、持续目标。"
+            "不要记录新闻、天气、价格、政策、活动、日期相关状态等易变信息。"
+            "不要记录图片 URL，也不要因为出现 [image] 就记忆图片内容。"
+            "如果没有值得长期记住的信息，返回 {\"memories\":[],\"forget\":[]}。"
+            "只输出 JSON，格式必须是 {\"memories\":[\"短记忆\"],\"forget\":[]}。"
+        )
+
+    def _format_memory_summary_input(self, recent_turns: list[dict[str, str]]) -> str:
+        lines = ["请从以下最近对话中提炼可长期保存的用户记忆："]
+        for item in recent_turns:
+            role = "用户" if item["role"] == "user" else "AI"
+            lines.append(f"{role}: {item['content']}")
+        return "\n".join(lines)
+
+    def _extract_memory_summaries(self, response: Any) -> list[str]:
+        content = self._extract_content(response).strip()
+        if not content:
+            return []
+
+        content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content, flags=re.IGNORECASE | re.DOTALL).strip()
+        try:
+            payload = json.loads(content)
+        except json.JSONDecodeError:
+            match = re.search(r"\{.*\}", content, flags=re.DOTALL)
+            if not match:
+                logger.warning("AI memory summary returned non-JSON content: {}", content[:300])
+                return []
+            try:
+                payload = json.loads(match.group(0))
+            except json.JSONDecodeError:
+                logger.warning("AI memory summary returned invalid JSON: {}", content[:300])
+                return []
+
+        memories = payload.get("memories") if isinstance(payload, dict) else []
+        if not isinstance(memories, list):
+            return []
+
+        return [str(memory).strip() for memory in memories if str(memory).strip()]
 
     def _is_retryable_error(self, exc: Exception) -> bool:
         status_code: Any = getattr(exc, "status_code", None)
@@ -134,10 +270,11 @@ class ChatHandler:
         system_prompt: str,
         history: list[dict[str, str]],
         image_urls: list[str],
+        memories: list[dict[str, str]] | None = None,
     ) -> Any:
         request_kwargs: dict[str, Any] = {
             "model": self.config.aichat_model,
-            "instructions": self._build_instructions(system_prompt),
+            "instructions": self._build_instructions(system_prompt, memories),
             "input": self._responses_input(history, image_urls),
             "stream": False,
         }
@@ -147,7 +284,7 @@ class ChatHandler:
 
         return await self.client.responses.create(**request_kwargs)
 
-    def _build_instructions(self, role_prompt: str) -> str:
+    def _build_instructions(self, role_prompt: str, memories: list[dict[str, str]] | None = None) -> str:
         now = datetime.now(timezone(timedelta(hours=8), "HKT")).strftime("%Y-%m-%d %H:%M:%S %Z")
         realtime_rule = (
             "当用户询问今天、现在、最近、天气、新闻、价格、政策、活动、产品发售等可能变化的信息时，"
@@ -155,15 +292,30 @@ class ChatHandler:
             "不要凭记忆编造日期、天气、新闻或其他实时事实；无法确认时直接说明无法确认。"
         )
         style_rule = "回答应适合 QQ 聊天：简洁、自然、直接；不要使用 Markdown 加粗，除非用户明确需要格式化。"
+        memory_text = self._format_memory_instructions(memories or [])
         return "\n".join(
-            [
+            item
+            for item in [
                 role_prompt.strip(),
                 "",
                 f"当前日期时间：{now}。",
                 realtime_rule,
                 style_rule,
+                memory_text,
             ]
+            if item
         )
+
+    def _format_memory_instructions(self, memories: list[dict[str, str]]) -> str:
+        if not memories:
+            return ""
+
+        lines = [
+            "",
+            "已知用户长期记忆（只用于理解用户偏好、背景和长期目标；不要把它们当作实时事实来源）：",
+        ]
+        lines.extend(f"{index}. {item['content']}" for index, item in enumerate(memories, 1))
+        return "\n".join(lines)
 
     def _responses_input(
         self,
@@ -284,6 +436,11 @@ class ChatHandler:
             client_kwargs["base_url"] = self.config.aichat_baseurl
 
         return AsyncOpenAI(**client_kwargs)
+
+    def _create_memory_store(self) -> MemoryStore | None:
+        if not self.config.aichat_memory_enabled:
+            return None
+        return MemoryStore(self.config.aichat_memory_path, self.config.aichat_memory_max_items)
 
     def _touch(self, session_id: str) -> None:
         self.last_active_at[session_id] = time.time()

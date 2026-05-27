@@ -6,6 +6,8 @@ import nonebot
 
 nonebot.init()
 
+from nonebot.adapters.onebot.v11 import Message, MessageSegment
+from src.common.rules import message_mentions_bot
 from src.plugins.ai_chat.config import Config
 from src.plugins.ai_chat.data_source import ChatHandler
 
@@ -30,6 +32,18 @@ class _Client:
 
 
 class AiChatTestCase(unittest.TestCase):
+    def test_message_mentions_bot_finds_at_segment_anywhere(self) -> None:
+        message = Message(
+            [
+                MessageSegment.image("https://example.com/a.jpg"),
+                MessageSegment.at("12345"),
+                MessageSegment.text(" hello"),
+            ]
+        )
+
+        self.assertTrue(message_mentions_bot(message, SimpleNamespace(self_id="12345")))
+        self.assertFalse(message_mentions_bot(message, SimpleNamespace(self_id="67890")))
+
     def test_ask_uses_responses_api_with_web_search(self) -> None:
         config = Config(
             aichat_key="key",
@@ -156,6 +170,47 @@ class AiChatTestCase(unittest.TestCase):
                 {"role": "user", "content": [{"type": "input_text", "text": "news?"}]},
             ],
         )
+
+    def test_trim_history_keeps_complete_recent_turns(self) -> None:
+        config = Config(
+            aichat_key="key",
+            aichat_baseurl="https://api.example/v1",
+            aichat_model="gpt-5",
+            aichat_history_limit=6,
+        )
+        handler = ChatHandler(config, _RoleStore())
+        handler.histories["session"] = [
+            {"role": "system", "content": "system prompt"},
+            {"role": "user", "content": "u1"},
+            {"role": "assistant", "content": "a1"},
+            {"role": "user", "content": "u2"},
+            {"role": "assistant", "content": "a2"},
+            {"role": "user", "content": "u3"},
+            {"role": "assistant", "content": "a3"},
+        ]
+
+        handler._trim_history("session", "system prompt")
+
+        self.assertEqual(
+            handler.histories["session"],
+            [
+                {"role": "system", "content": "system prompt"},
+                {"role": "user", "content": "u2"},
+                {"role": "assistant", "content": "a2"},
+                {"role": "user", "content": "u3"},
+                {"role": "assistant", "content": "a3"},
+            ],
+        )
+
+    def test_retryable_error_detection_skips_normal_client_errors(self) -> None:
+        config = Config(aichat_key="key", aichat_baseurl="https://api.example/v1", aichat_model="gpt-5")
+        handler = ChatHandler(config, _RoleStore())
+
+        self.assertFalse(handler._is_retryable_error(SimpleNamespace(status_code=400)))
+        self.assertFalse(handler._is_retryable_error(SimpleNamespace(status_code=401)))
+        self.assertTrue(handler._is_retryable_error(SimpleNamespace(status_code=429)))
+        self.assertTrue(handler._is_retryable_error(SimpleNamespace(status_code=500)))
+        self.assertTrue(handler._is_retryable_error(Exception("network")))
 
 
 if __name__ == "__main__":

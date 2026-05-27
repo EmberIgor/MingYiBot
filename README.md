@@ -65,7 +65,7 @@ ws://群晖IP:18080/onebot/v11/ws
 
 | 命令 | 说明 | 示例 |
 | --- | --- | --- |
-| `@机器人 内容` | 与 AI 对话。机器人会按“群/用户/角色”分别保留上下文。 | `@茗懿 帮我想一个跑团导入` |
+| `@机器人 内容` | 与 AI 对话，`@机器人` 可以放在消息任意位置。机器人会按“群/用户/角色”分别保留上下文。 | `@茗懿 帮我想一个跑团导入` |
 | `.ai` | 查看当前角色和可用角色。 | `.ai` |
 | `.ai 列表` | 查看当前角色和可用角色。 | `.ai 列表` |
 | `.ai 角色名` | 切换当前聊天角色，并清空当前角色会话上下文。 | `.ai creative` |
@@ -117,11 +117,11 @@ ws://群晖IP:18080/onebot/v11/ws
 | 配置项 | 默认值 | 说明 |
 | --- | --- | --- |
 | `AICHAT_KEY` | 空 | OpenAI 兼容接口的 API Key。 |
-| `AICHAT_BASEURL` | 空 | OpenAI 兼容接口 Base URL，例如 `https://api.gptsapi.net/v1`。不要填到 `/responses`。 |
+| `AICHAT_BASEURL` | 空 | OpenAI 兼容 Responses API 的 Base URL，例如 `https://api.gptsapi.net/v1`。不要填到 `/responses`。 |
 | `AICHAT_MODEL` | 空 | AI 聊天使用的模型名。 |
 | `AICHAT_WEB_SEARCH` | `false` | 是否启用 Responses API 的 `web_search` 联网工具。图片解析始终走 Responses API 的 `input_image`。 |
 | `AICHAT_DEFAULT_ROLE` | `default` | 默认聊天角色。 |
-| `AICHAT_HISTORY_LIMIT` | `12` | 每个会话保留的消息条数，包含 system 消息。 |
+| `AICHAT_HISTORY_LIMIT` | `12` | 每个会话保留的消息条数，包含 system 消息；裁剪时会保留完整问答轮次。 |
 | `AICHAT_ROLES_PATH` | `data/ai_chat_roles.json` | 角色配置文件路径。首次启动会自动生成默认角色文件。 |
 | `AICHAT_SESSION_TTL_MINUTES` | `1440` | 会话上下文过期时间，单位分钟。 |
 

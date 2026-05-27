@@ -3,7 +3,7 @@ import re
 from nonebot import get_plugin_config, logger, on_message, on_regex
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageEvent, MessageSegment
 from nonebot.plugin import PluginMetadata
-from nonebot.rule import to_me
+from src.common.rules import directed_to_bot
 
 from .config import Config
 from .data_source import ChatHandler
@@ -22,7 +22,7 @@ chat_handler = ChatHandler(config, role_store)
 selected_roles: dict[str, str] = {}
 
 role_command = on_regex(r"^[.。]ai(?:\s+|$)(.*)$", priority=20, block=True)
-ai_chat = on_message(to_me(), priority=100, block=True)
+ai_chat = on_message(directed_to_bot(), priority=100, block=True)
 
 
 def _extract_chat_content(message: Message, bot: Bot) -> tuple[str, list[str]]:

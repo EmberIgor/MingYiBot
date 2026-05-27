@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import asyncio
 import json
 import re
 import time
@@ -46,10 +49,11 @@ class ChatHandler:
                 response = await self._request_ai(system_prompt, history, image_urls or [])
                 break
             except Exception as exc:
-                if retry == 2:
+                if retry == 2 or not self._is_retryable_error(exc):
                     history.pop()
                     logger.exception("AI chat request failed: {}", exc)
                     return "AI 聊天请求失败，请稍后再试。"
+                await asyncio.sleep(0.5 * (retry + 1))
         else:
             history.pop()
             return "AI 聊天请求失败，请稍后再试。"
@@ -100,10 +104,30 @@ class ChatHandler:
         if len(history) <= history_limit:
             return
 
+        max_non_system_messages = max(history_limit - 1, 2)
+        max_non_system_messages = max_non_system_messages // 2 * 2
+        kept_messages = history[1:][-max_non_system_messages:]
+        while kept_messages and kept_messages[0]["role"] == "assistant":
+            kept_messages = kept_messages[1:]
+
         self.histories[session_id] = [
             {"role": "system", "content": system_prompt},
-            *history[-(history_limit - 1) :],
+            *kept_messages,
         ]
+
+    def _is_retryable_error(self, exc: Exception) -> bool:
+        status_code: Any = getattr(exc, "status_code", None)
+        if status_code is None:
+            response = getattr(exc, "response", None)
+            status_code = getattr(response, "status_code", None)
+
+        if not isinstance(status_code, int):
+            return True
+
+        if status_code in {408, 409, 429}:
+            return True
+
+        return status_code >= 500
 
     async def _request_ai(
         self,

@@ -12,6 +12,7 @@ from src.common.rules import message_mentions_bot
 from src.plugins.ai_chat import _build_prompt_with_reply, _extract_chat_content, _extract_reply_context
 from src.plugins.ai_chat.config import Config
 from src.plugins.ai_chat.data_source import ChatHandler
+from src.plugins.ai_chat.role_store import DEFAULT_ROLES
 
 
 class _RoleStore:
@@ -34,6 +35,10 @@ class _Client:
 
 
 class AiChatTestCase(unittest.TestCase):
+    def test_default_roles_include_jarvis_preset(self) -> None:
+        self.assertIn("jarvis", DEFAULT_ROLES)
+        self.assertIn("英式管家", DEFAULT_ROLES["jarvis"])
+
     def test_message_mentions_bot_finds_at_segment_anywhere(self) -> None:
         message = Message(
             [

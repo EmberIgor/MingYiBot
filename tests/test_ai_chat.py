@@ -45,7 +45,9 @@ class AiChatTestCase(unittest.TestCase):
 
         self.assertEqual(response, "ok")
         self.assertEqual(client.responses.calls[0]["model"], "gpt-5")
-        self.assertEqual(client.responses.calls[0]["instructions"], "role:default")
+        self.assertIn("role:default", client.responses.calls[0]["instructions"])
+        self.assertIn("当前日期时间", client.responses.calls[0]["instructions"])
+        self.assertIn("天气、新闻", client.responses.calls[0]["instructions"])
         self.assertEqual(
             client.responses.calls[0]["input"],
             [{"role": "user", "content": [{"type": "input_text", "text": "news?"}]}],

@@ -1,6 +1,7 @@
 import json
 import re
 import time
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 from nonebot import logger
@@ -112,7 +113,7 @@ class ChatHandler:
     ) -> Any:
         request_kwargs: dict[str, Any] = {
             "model": self.config.aichat_model,
-            "instructions": system_prompt,
+            "instructions": self._build_instructions(system_prompt),
             "input": self._responses_input(history, image_urls),
             "stream": False,
         }
@@ -121,6 +122,24 @@ class ChatHandler:
             request_kwargs["tool_choice"] = "auto"
 
         return await self.client.responses.create(**request_kwargs)
+
+    def _build_instructions(self, role_prompt: str) -> str:
+        now = datetime.now(timezone(timedelta(hours=8), "HKT")).strftime("%Y-%m-%d %H:%M:%S %Z")
+        realtime_rule = (
+            "当用户询问今天、现在、最近、天气、新闻、价格、政策、活动、产品发售等可能变化的信息时，"
+            "必须按当前日期时间理解问题；如果联网工具可用，应先查询或核验再回答。"
+            "不要凭记忆编造日期、天气、新闻或其他实时事实；无法确认时直接说明无法确认。"
+        )
+        style_rule = "回答应适合 QQ 聊天：简洁、自然、直接；不要使用 Markdown 加粗，除非用户明确需要格式化。"
+        return "\n".join(
+            [
+                role_prompt.strip(),
+                "",
+                f"当前日期时间：{now}。",
+                realtime_rule,
+                style_rule,
+            ]
+        )
 
     def _responses_input(
         self,

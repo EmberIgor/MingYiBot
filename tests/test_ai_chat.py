@@ -7,7 +7,9 @@ import nonebot
 nonebot.init()
 
 from nonebot.adapters.onebot.v11 import Message, MessageSegment
+from nonebot.adapters.onebot.v11.event import Reply
 from src.common.rules import message_mentions_bot
+from src.plugins.ai_chat import _build_prompt_with_reply, _extract_chat_content, _extract_reply_context
 from src.plugins.ai_chat.config import Config
 from src.plugins.ai_chat.data_source import ChatHandler
 
@@ -43,6 +45,40 @@ class AiChatTestCase(unittest.TestCase):
 
         self.assertTrue(message_mentions_bot(message, SimpleNamespace(self_id="12345")))
         self.assertFalse(message_mentions_bot(message, SimpleNamespace(self_id="67890")))
+
+    def test_extract_chat_content_ignores_reply_segment(self) -> None:
+        message = Message([MessageSegment.reply(42), MessageSegment.text(" 总结一下")])
+
+        prompt, image_urls = _extract_chat_content(message, SimpleNamespace(self_id="12345"))
+
+        self.assertEqual(prompt, "总结一下")
+        self.assertEqual(image_urls, [])
+
+    def test_extract_reply_context_includes_quoted_text_and_images(self) -> None:
+        reply = Reply(
+            time=1,
+            message_type="group",
+            message_id=42,
+            real_id=42,
+            sender={"user_id": 10001, "nickname": "茗懿"},
+            message=Message(
+                [
+                    MessageSegment.text("这张图是新闻截图"),
+                    MessageSegment("image", {"file": "https://example.com/news.png"}),
+                ]
+            ),
+        )
+
+        reply_context, image_urls = _extract_reply_context(reply, SimpleNamespace(self_id="12345"))
+
+        self.assertEqual(reply_context, "用户引用了 茗懿 的消息：这张图是新闻截图 [image]")
+        self.assertEqual(image_urls, ["https://example.com/news.png"])
+
+    def test_build_prompt_with_reply_context(self) -> None:
+        self.assertEqual(
+            _build_prompt_with_reply("总结一下", "用户引用了 茗懿 的消息：[image]"),
+            "用户引用了 茗懿 的消息：[image]\n用户当前消息：总结一下",
+        )
 
     def test_ask_uses_responses_api_with_web_search(self) -> None:
         config = Config(

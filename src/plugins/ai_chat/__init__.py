@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import re
 
 from nonebot import get_plugin_config, logger, on_message, on_regex
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageEvent, MessageSegment
+from nonebot.adapters.onebot.v11.event import Reply
 from nonebot.plugin import PluginMetadata
 from src.common.rules import directed_to_bot
 
@@ -38,14 +41,39 @@ def _extract_chat_content(message: Message, bot: Bot) -> tuple[str, list[str]]:
             if qq and qq != str(bot.self_id):
                 parts.append(f"@{qq}")
         elif segment.type == "image":
-            image_url = str(segment.data.get("url") or "").strip()
+            image_url = str(segment.data.get("url") or segment.data.get("file") or "").strip()
             if image_url.startswith(("http://", "https://", "data:")):
                 image_urls.append(image_url)
             parts.append("[image]")
+        elif segment.type == "reply":
+            continue
         else:
             parts.append(f"[{segment.type}]")
 
     return " ".join(parts).strip(), image_urls
+
+
+def _reply_sender_name(reply: Reply) -> str:
+    sender = reply.sender
+    return str(sender.card or sender.nickname or sender.user_id or "未知用户")
+
+
+def _extract_reply_context(reply: Reply | None, bot: Bot) -> tuple[str, list[str]]:
+    if reply is None:
+        return "", []
+
+    quoted_content, image_urls = _extract_chat_content(reply.message, bot)
+    quoted_content = quoted_content or "[空消息]"
+    sender_name = _reply_sender_name(reply)
+
+    return f"用户引用了 {sender_name} 的消息：{quoted_content}", image_urls
+
+
+def _build_prompt_with_reply(prompt: str, reply_context: str) -> str:
+    if not reply_context:
+        return prompt
+
+    return f"{reply_context}\n用户当前消息：{prompt}"
 
 
 def _conversation_scope(event: MessageEvent) -> str:
@@ -110,11 +138,13 @@ async def _handle_role_command(event: MessageEvent, command: str, matcher) -> No
 @ai_chat.handle()
 async def handle_ai_chat(bot: Bot, event: MessageEvent) -> None:
     prompt, image_urls = _extract_chat_content(event.get_message(), bot)
+    reply_context, reply_image_urls = _extract_reply_context(event.reply, bot)
     prompt = prompt or "你好"
+    prompt = _build_prompt_with_reply(prompt, reply_context)
     response = await chat_handler.ask(
         prompt,
         _session_id(event),
         _current_role(_conversation_scope(event)),
-        image_urls,
+        [*reply_image_urls, *image_urls],
     )
     await ai_chat.finish(MessageSegment.text(response), at_sender=True)

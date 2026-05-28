@@ -21,7 +21,7 @@ ws://宿主机IP:8080/onebot/v11/ws
 
 如果配置了 `ONEBOT_ACCESS_TOKEN`，QQ 端实现里的 access token 需要保持一致。
 
-## Docker 运行
+## Docker 本地运行
 
 ```bash
 cp .env.example .env
@@ -38,6 +38,93 @@ BOT_PORT=18080
 
 ```text
 ws://群晖IP:18080/onebot/v11/ws
+```
+
+## 群晖自动部署
+
+生产环境推荐使用 GitHub Actions 构建镜像并推送到 GHCR，群晖只负责拉取新镜像和重启容器。这样每次 `git push` 到 `main` 后，不需要在 Container Manager 里删除项目再重建。
+
+如果只使用群晖 Container Manager 图形界面，优先使用 `docker-compose.synology.yml` 创建项目。这个文件已经把机器人和 Watchtower 放在同一个项目里。
+
+### 1. GitHub Actions
+
+仓库内的 `.github/workflows/docker-image.yml` 会在 `main` 分支 push 或手动触发时构建镜像，并推送：
+
+```text
+ghcr.io/emberigor/mingyibot:latest
+ghcr.io/emberigor/mingyibot:<commit-sha>
+```
+
+`latest` 用于日常自动更新，提交 SHA tag 用于回滚。
+
+### 2. 群晖首次部署
+
+在群晖项目目录准备 `.env`：
+
+```bash
+cp .env.example .env
+```
+
+如果 GHCR 镜像是私有的，先在群晖 SSH 中登录 GHCR。这个 token 只需要 GitHub `read:packages` 权限，用于首次手动 `pull`：
+
+```bash
+docker login ghcr.io
+```
+
+然后启动生产容器：
+
+```bash
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+如果使用 Container Manager：
+
+1. 打开 Container Manager。
+2. 进入“项目”。
+3. 选择“新增”。
+4. 项目名称填写 `mingyibot`。
+5. 路径选择放置本仓库文件的目录。
+6. Compose 文件选择 `docker-compose.synology.yml`。
+7. 环境变量按 `.env.example` 填写；如果镜像是私有的，额外填写 `GHCR_USERNAME` 和 `GHCR_PAT`。
+8. 创建并启动项目。
+
+### 3. 自动拉取新镜像
+
+启动 Watchtower 后，它会只更新带有 Watchtower 标签的 `mingyi-bot` 容器，默认每 300 秒检查一次：
+
+```bash
+docker compose -f docker-compose.watchtower.yml up -d
+```
+
+如果 GHCR 镜像是私有的，还需要让 Watchtower 自己带上拉取凭据。在 `.env` 中填写：
+
+```dotenv
+GHCR_USERNAME=你的GitHub用户名
+GHCR_PAT=只包含read:packages权限的GitHub PAT
+```
+
+然后用 override 启动：
+
+```bash
+docker compose -f docker-compose.watchtower.yml -f docker-compose.watchtower.private.yml up -d
+```
+
+如需调整检查间隔，可以在 `.env` 中设置：
+
+```dotenv
+WATCHTOWER_POLL_INTERVAL=600
+```
+
+### 4. 日常更新和回滚
+
+日常更新只需要把代码推送到 `main`，等待 GitHub Actions 构建成功和 Watchtower 自动拉取。
+
+如果要回滚，把 `docker-compose.prod.yml` 里的镜像 tag 从 `latest` 临时改成某个历史提交 SHA tag，然后执行：
+
+```bash
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ## 当前功能

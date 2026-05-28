@@ -1,8 +1,10 @@
 services:
   bot:
-    build: .
+    image: ghcr.io/emberigor/mingyibot:latest
     container_name: mingyi-bot
     restart: unless-stopped
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
     environment:
       DRIVER: "~fastapi"
       HOST: "0.0.0.0"

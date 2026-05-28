@@ -72,7 +72,7 @@ cp .env.example .env
 /volume1/docker/MingYiBot/synology/docker-compose.yml
 ```
 
-`synology/docker-compose.yml` 会通过 `env_file: ../.env` 把配置注入容器。不要只依赖 `environment` 里的 `${变量:-}` 插值；在部分群晖 Container Manager 场景下，插值阶段读不到 `.env` 时会把这些值展开成空字符串。
+`synology/docker-compose.yml` 会通过 `env_file: ../.env` 把配置注入容器，并把同一份文件只读挂载到容器内的 `/app/.env`。这样即使群晖 Container Manager 没有正确处理 `env_file`，NoneBot 启动时也能直接读取 `/app/.env`。不要只依赖 `environment` 里的 `${变量:-}` 插值；在部分群晖 Container Manager 场景下，插值阶段读不到 `.env` 时会把这些值展开成空字符串。
 
 如果 GHCR 镜像是私有的，先在群晖 SSH 中登录 GHCR。这个 token 只需要 GitHub `read:packages` 权限，用于首次手动 `pull`：
 

@@ -125,9 +125,25 @@ docker compose -f docker-compose.watchtower.yml -f docker-compose.watchtower.pri
 WATCHTOWER_POLL_INTERVAL=600
 ```
 
-### 4. 日常更新和回滚
+### 4. 日常更新和配置变更
 
-日常更新只需要把代码推送到 `main`，等待 GitHub Actions 构建成功和 Watchtower 自动拉取。
+只改机器人代码时，把代码推送到 `main`，等待 GitHub Actions 构建成功和 Watchtower 自动拉取即可。
+
+如果本次更新涉及以下内容，Watchtower 不会自动应用，需要在群晖 Container Manager 中手动重启/重建项目：
+
+- `docker-compose.yml`、`synology/docker-compose.yml` 等 Compose 文件。
+- `.env` 中的配置项。
+- 端口、挂载目录、`env_file`、`volumes`、`environment`、网络等容器配置。
+- `data/` 下已经持久化的运行时配置，例如 `data/ai_chat_roles.json`。
+
+如果使用 SSH，也可以在 `synology` 目录执行：
+
+```bash
+docker compose pull
+docker compose up -d --force-recreate
+```
+
+### 5. 回滚
 
 如果要回滚，把 `docker-compose.prod.yml` 里的镜像 tag 从 `latest` 临时改成某个历史提交 SHA tag，然后执行：
 

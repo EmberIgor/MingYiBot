@@ -100,7 +100,7 @@ docker compose -f docker-compose.prod.yml up -d
 
 ### 3. 自动拉取新镜像
 
-启动 Watchtower 后，它会只更新带有 Watchtower 标签的 `mingyi-bot` 容器，默认每 300 秒检查一次：
+启动 Watchtower 后，它会只更新带有 Watchtower 标签的 `mingyi-bot` 容器，默认每 60 秒检查一次：
 
 ```bash
 docker compose -f docker-compose.watchtower.yml up -d
@@ -124,6 +124,14 @@ docker compose -f docker-compose.watchtower.yml -f docker-compose.watchtower.pri
 ```dotenv
 WATCHTOWER_POLL_INTERVAL=600
 ```
+
+如果使用 `synology/docker-compose.yml` 内置的 Watchtower，可以额外配置 HTTP API token，让管理员在 QQ 中发送 `.更新` 或 `.部署更新` 立即触发一次镜像检查：
+
+```dotenv
+WATCHTOWER_HTTP_API_TOKEN=一串随机长字符串
+```
+
+这个接口只在 Compose 内部网络给机器人调用，不需要暴露到群晖宿主机端口。不要使用 `.env.example` 里的占位 token，部署时请换成自己的随机长字符串。
 
 ### 4. 日常更新和配置变更
 
@@ -161,6 +169,7 @@ docker compose -f docker-compose.prod.yml up -d
 - COC7 工具：支持基础骰子、技能检定和快速调查员生成。
 - 火烧云查询：查询指定城市今日、明日的日出/日落火烧云分析；支持定时私聊提醒。
 - 每日新闻：手动获取 60s 每日新闻图片；支持每天定时向群推送。
+- 部署更新：管理员可以在 QQ 中触发 Watchtower 立即检查新镜像。
 
 ## 用户可用命令
 
@@ -172,6 +181,7 @@ docker compose -f docker-compose.prod.yml up -d
 | --- | --- | --- |
 | `.help` | 查看用户可用指令摘要。也可以写作 `.帮助`、`.菜单`，并支持中文句号。 | `.help` |
 | `.ping` | 检查机器人是否在线，回复 `pong`。也可以写作 `.状态`。 | `.ping` |
+| `.更新` | 管理员触发 Watchtower 立即检查并更新镜像。也可以写作 `.部署更新`。 | `.更新` |
 
 ### AI 聊天
 
@@ -236,6 +246,16 @@ docker compose -f docker-compose.prod.yml up -d
 | --- | --- | --- |
 | `SUPERUSERS` | 空列表 | 管理员 QQ 号列表，例如 `["123456"]`。启动成功通知会发送给这里配置的用户。 |
 | `MINGYI_VERSION` | `dev` | 后台版本号。GitHub Actions 构建镜像时会自动写入提交 SHA，通常不需要手动配置。 |
+
+### 部署更新配置
+
+| 配置项 | 默认值 | 说明 |
+| --- | --- | --- |
+| `WATCHTOWER_POLL_INTERVAL` | `60` | Watchtower 自动检查镜像更新的间隔，单位秒。 |
+| `WATCHTOWER_HTTP_API_TOKEN` | `change-me-random-token` | Watchtower HTTP API 鉴权 token；部署时请改成随机长字符串。 |
+| `WATCHTOWER_HTTP_API_URL` | `http://watchtower:8080/v1/update` | 机器人触发 Watchtower 更新的内部地址。 |
+| `WATCHTOWER_UPDATE_IMAGE` | `ghcr.io/emberigor/mingyibot:latest` | 手动触发更新时检查的镜像。 |
+| `WATCHTOWER_HTTP_TIMEOUT_SECONDS` | `10` | 机器人请求 Watchtower HTTP API 的超时时间，单位秒。 |
 
 ### AI 聊天配置
 

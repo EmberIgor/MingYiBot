@@ -6,6 +6,7 @@ from nonebot.plugin import PluginMetadata
 HELP_TEXT = """可用指令：
 .help、.帮助、。菜单 - 查看这份指令说明
 .ping、.状态 - 检查机器人是否在线
+.更新、.部署更新 - 管理员触发镜像更新
 今日新闻、.今日新闻、。今日新闻 - 获取今日 60s 新闻
 sun 上海、.sun 上海、。火烧云 广州 - 查询火烧云
 .r 2d6+3、.r1d100、。rd50 - 投骰

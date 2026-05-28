@@ -239,11 +239,19 @@ docker compose -f docker-compose.prod.yml up -d
 
 ### AI 聊天配置
 
+公共 AI 配置可供未来其他插件复用；`ai_chat` 会优先读取自己的 `AICHAT_*` 配置，未配置时回退到公共 AI 配置。联网工具开关保留在插件维度，不提供全局 `AI_WEB_SEARCH`。
+
 | 配置项 | 默认值 | 说明 |
 | --- | --- | --- |
-| `AICHAT_KEY` | 空 | OpenAI 兼容接口的 API Key。 |
-| `AICHAT_BASEURL` | 空 | OpenAI 兼容 Responses API 的 Base URL，例如 `https://api.gptsapi.net/v1`。不要填到 `/responses`。 |
-| `AICHAT_MODEL` | 空 | AI 聊天使用的模型名。 |
+| `AI_KEY` | 空 | OpenAI 兼容接口的通用 API Key。 |
+| `AI_BASEURL` | 空 | OpenAI 兼容 Responses API 的通用 Base URL，例如 `https://api.gptsapi.net/v1`。不要填到 `/responses`。 |
+| `AI_MODEL` | 空 | 通用 AI 模型名。 |
+
+| 配置项 | 默认值 | 说明 |
+| --- | --- | --- |
+| `AICHAT_KEY` | 空 | AI 聊天专用 API Key；为空时回退到 `AI_KEY`。 |
+| `AICHAT_BASEURL` | 空 | AI 聊天专用 Base URL；为空时回退到 `AI_BASEURL`。 |
+| `AICHAT_MODEL` | 空 | AI 聊天使用的模型名；为空时回退到 `AI_MODEL`。 |
 | `AICHAT_WEB_SEARCH` | `false` | 是否启用 Responses API 的 `web_search` 联网工具。图片解析始终走 Responses API 的 `input_image`。 |
 | `AICHAT_DEFAULT_ROLE` | `default` | 默认聊天角色。 |
 | `AICHAT_HISTORY_LIMIT` | `12` | 每个会话保留的消息条数，包含 system 消息；裁剪时会保留完整问答轮次。 |
@@ -290,15 +298,18 @@ docker compose -f docker-compose.prod.yml up -d
 ├── Dockerfile
 ├── pyproject.toml
 ├── requirements.txt
-└── src/plugins
-    ├── ai_chat
-    ├── coc7
-    ├── daily_news
-    ├── help
-    ├── ping
-    ├── repeater
-    ├── startup_notify
-    └── sunset
+└── src
+    ├── common
+    │   └── ai
+    └── plugins
+        ├── ai_chat
+        ├── coc7
+        ├── daily_news
+        ├── help
+        ├── ping
+        ├── repeater
+        ├── startup_notify
+        └── sunset
 ```
 
 后续插件建议按功能放到 `src/plugins/<插件名>/__init__.py`。

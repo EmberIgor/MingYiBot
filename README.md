@@ -59,11 +59,20 @@ ghcr.io/emberigor/mingyibot:<commit-sha>
 
 ### 2. 群晖首次部署
 
-在群晖项目目录准备 `.env`：
+在群晖项目根目录准备 `.env`，也就是 `.env.example` 所在目录：
 
 ```bash
 cp .env.example .env
 ```
+
+如果使用 Container Manager 并把项目路径选为 `synology` 子目录，`.env` 仍然放在 `synology` 的上一级：
+
+```text
+/volume1/docker/MingYiBot/.env
+/volume1/docker/MingYiBot/synology/docker-compose.yml
+```
+
+`synology/docker-compose.yml` 会通过 `env_file: ../.env` 把配置注入容器。不要只依赖 `environment` 里的 `${变量:-}` 插值；在部分群晖 Container Manager 场景下，插值阶段读不到 `.env` 时会把这些值展开成空字符串。
 
 如果 GHCR 镜像是私有的，先在群晖 SSH 中登录 GHCR。这个 token 只需要 GitHub `read:packages` 权限，用于首次手动 `pull`：
 
@@ -86,7 +95,7 @@ docker compose -f docker-compose.prod.yml up -d
 4. 项目名称填写 `mingyibot`。
 5. 路径选择本仓库里的 `synology` 子目录，例如 `/volume1/docker/MingYiBot/synology`。
 6. 使用该目录现有的 `docker-compose.yml` 创建项目。
-7. 环境变量按 `.env.example` 填写；如果镜像是私有的，额外填写 `GHCR_USERNAME` 和 `GHCR_PAT`。
+7. 在 `synology` 的上一级准备 `.env`，内容按 `.env.example` 填写；如果镜像是私有的，额外填写 `GHCR_USERNAME` 和 `GHCR_PAT`。如果使用 `synology/docker-compose.yml` 内置的 Watchtower，还需要把同一组凭据写入 `REPO_USER` 和 `REPO_PASS`。
 8. 创建并启动项目。
 
 ### 3. 自动拉取新镜像

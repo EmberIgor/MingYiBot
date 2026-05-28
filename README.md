@@ -21,7 +21,7 @@ ws://宿主机IP:8080/onebot/v11/ws
 
 如果配置了 `ONEBOT_ACCESS_TOKEN`，QQ 端实现里的 access token 需要保持一致。
 
-## Docker 运行
+## Docker 本地运行
 
 ```bash
 cp .env.example .env
@@ -38,6 +38,93 @@ BOT_PORT=18080
 
 ```text
 ws://群晖IP:18080/onebot/v11/ws
+```
+
+## 群晖自动部署
+
+生产环境推荐使用 GitHub Actions 构建镜像并推送到 GHCR，群晖只负责拉取新镜像和重启容器。这样每次 `git push` 到 `main` 后，不需要在 Container Manager 里删除项目再重建。
+
+如果只使用群晖 Container Manager 图形界面，优先使用 `docker-compose.synology.yml` 创建项目。这个文件已经把机器人和 Watchtower 放在同一个项目里。
+
+### 1. GitHub Actions
+
+仓库内的 `.github/workflows/docker-image.yml` 会在 `main` 分支 push 或手动触发时构建镜像，并推送：
+
+```text
+ghcr.io/emberigor/mingyibot:latest
+ghcr.io/emberigor/mingyibot:<commit-sha>
+```
+
+`latest` 用于日常自动更新，提交 SHA tag 用于回滚。
+
+### 2. 群晖首次部署
+
+在群晖项目目录准备 `.env`：
+
+```bash
+cp .env.example .env
+```
+
+如果 GHCR 镜像是私有的，先在群晖 SSH 中登录 GHCR。这个 token 只需要 GitHub `read:packages` 权限，用于首次手动 `pull`：
+
+```bash
+docker login ghcr.io
+```
+
+然后启动生产容器：
+
+```bash
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+如果使用 Container Manager：
+
+1. 打开 Container Manager。
+2. 进入“项目”。
+3. 选择“新增”。
+4. 项目名称填写 `mingyibot`。
+5. 路径选择放置本仓库文件的目录。
+6. Compose 文件选择 `docker-compose.synology.yml`。
+7. 环境变量按 `.env.example` 填写；如果镜像是私有的，额外填写 `GHCR_USERNAME` 和 `GHCR_PAT`。
+8. 创建并启动项目。
+
+### 3. 自动拉取新镜像
+
+启动 Watchtower 后，它会只更新带有 Watchtower 标签的 `mingyi-bot` 容器，默认每 300 秒检查一次：
+
+```bash
+docker compose -f docker-compose.watchtower.yml up -d
+```
+
+如果 GHCR 镜像是私有的，还需要让 Watchtower 自己带上拉取凭据。在 `.env` 中填写：
+
+```dotenv
+GHCR_USERNAME=你的GitHub用户名
+GHCR_PAT=只包含read:packages权限的GitHub PAT
+```
+
+然后用 override 启动：
+
+```bash
+docker compose -f docker-compose.watchtower.yml -f docker-compose.watchtower.private.yml up -d
+```
+
+如需调整检查间隔，可以在 `.env` 中设置：
+
+```dotenv
+WATCHTOWER_POLL_INTERVAL=600
+```
+
+### 4. 日常更新和回滚
+
+日常更新只需要把代码推送到 `main`，等待 GitHub Actions 构建成功和 Watchtower 自动拉取。
+
+如果要回滚，把 `docker-compose.prod.yml` 里的镜像 tag 从 `latest` 临时改成某个历史提交 SHA tag，然后执行：
+
+```bash
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ## 当前功能
@@ -65,14 +152,19 @@ ws://群晖IP:18080/onebot/v11/ws
 
 | 命令 | 说明 | 示例 |
 | --- | --- | --- |
-| `@机器人 内容` | 与 AI 对话。机器人会按“群/用户/角色”分别保留上下文。 | `@茗懿 帮我想一个跑团导入` |
+| `@机器人 内容` | 与 AI 对话，`@机器人` 可以放在消息任意位置。机器人会按“群/用户/角色”分别保留上下文。 | `@茗懿 帮我想一个跑团导入` |
 | `.ai` | 查看当前角色和可用角色。 | `.ai` |
 | `.ai 列表` | 查看当前角色和可用角色。 | `.ai 列表` |
-| `.ai 角色名` | 切换当前聊天角色，并清空当前角色会话上下文。 | `.ai creative` |
+| `.ai 角色名` | 切换当前聊天角色，并清空当前角色会话上下文。 | `.ai jarvis` |
 | `.ai 重置` | 清空当前 AI 聊天上下文。 | `.ai 重置` |
 | `.ai 重载` | 重新加载角色配置，并恢复为默认角色。 | `.ai 重载` |
+| `.ai 记忆` | 查看当前用户的长期记忆。长期记忆按 QQ 用户保存，跨群聊和私聊共享。 | `.ai 记忆` |
+| `.ai 记住 内容` | 手动保存一条长期记忆，立即生效，不额外调用模型。 | `.ai 记住 我喜欢简洁一点的回答` |
+| `.ai 忘记 编号` | 删除指定编号的长期记忆；也可以写 `.ai 忘记 全部` 清空。 | `.ai 忘记 1` |
 
-默认内置角色包括 `default`、`assistant`、`creative`、`concise`；如果管理员配置了自定义角色，以实际列表为准。
+默认内置角色包括 `default`、`assistant`、`creative`、`concise`、`jarvis`；如果管理员配置了自定义角色，以实际列表为准。
+回复或引用某条消息再 @ 机器人时，AI 会同时参考被引用消息；如果被引用消息里有图片，也会一并作为图片输入。
+开启长期记忆后，机器人会每 3 轮在后台自动总结最近对话，不阻塞当次回复；`.ai 重置` 只清空当前聊天上下文，不删除长期记忆。
 
 ### COC7 骰子与规则
 
@@ -117,12 +209,17 @@ ws://群晖IP:18080/onebot/v11/ws
 | 配置项 | 默认值 | 说明 |
 | --- | --- | --- |
 | `AICHAT_KEY` | 空 | OpenAI 兼容接口的 API Key。 |
-| `AICHAT_BASEURL` | 空 | OpenAI 兼容接口 Base URL。 |
+| `AICHAT_BASEURL` | 空 | OpenAI 兼容 Responses API 的 Base URL，例如 `https://api.gptsapi.net/v1`。不要填到 `/responses`。 |
 | `AICHAT_MODEL` | 空 | AI 聊天使用的模型名。 |
+| `AICHAT_WEB_SEARCH` | `false` | 是否启用 Responses API 的 `web_search` 联网工具。图片解析始终走 Responses API 的 `input_image`。 |
 | `AICHAT_DEFAULT_ROLE` | `default` | 默认聊天角色。 |
-| `AICHAT_HISTORY_LIMIT` | `12` | 每个会话保留的消息条数，包含 system 消息。 |
+| `AICHAT_HISTORY_LIMIT` | `12` | 每个会话保留的消息条数，包含 system 消息；裁剪时会保留完整问答轮次。 |
 | `AICHAT_ROLES_PATH` | `data/ai_chat_roles.json` | 角色配置文件路径。首次启动会自动生成默认角色文件。 |
 | `AICHAT_SESSION_TTL_MINUTES` | `1440` | 会话上下文过期时间，单位分钟。 |
+| `AICHAT_MEMORY_ENABLED` | `true` | 是否启用 AI 长期记忆。 |
+| `AICHAT_MEMORY_PATH` | `data/ai_chat_memories.json` | 长期记忆持久化文件路径。 |
+| `AICHAT_MEMORY_MAX_ITEMS` | `20` | 每个用户最多保留的长期记忆条数。 |
+| `AICHAT_MEMORY_SUMMARY_INTERVAL` | `3` | 每个用户每多少轮成功对话触发一次后台自动总结；小于等于 0 时不自动总结。 |
 
 ### 每日新闻配置
 

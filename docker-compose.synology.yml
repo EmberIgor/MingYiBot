@@ -1,8 +1,10 @@
 services:
   bot:
-    build: .
+    image: ghcr.io/emberigor/mingyibot:latest
     container_name: mingyi-bot
     restart: unless-stopped
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
     environment:
       DRIVER: "~fastapi"
       HOST: "0.0.0.0"
@@ -45,3 +47,17 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: mingyi-watchtower
+    restart: unless-stopped
+    environment:
+      TZ: "${TZ:-Asia/Hong_Kong}"
+      WATCHTOWER_POLL_INTERVAL: "${WATCHTOWER_POLL_INTERVAL:-300}"
+      WATCHTOWER_CLEANUP: "${WATCHTOWER_CLEANUP:-true}"
+      WATCHTOWER_LABEL_ENABLE: "true"
+      REPO_USER: "${GHCR_USERNAME:-}"
+      REPO_PASS: "${GHCR_PAT:-}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

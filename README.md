@@ -44,7 +44,7 @@ ws://群晖IP:18080/onebot/v11/ws
 
 生产环境推荐使用 GitHub Actions 构建镜像并推送到 GHCR，群晖只负责拉取新镜像和重启容器。这样每次 `git push` 到 `main` 后，不需要在 Container Manager 里删除项目再重建。
 
-如果只使用群晖 Container Manager 图形界面，优先使用 `docker-compose.synology.yml` 创建项目。这个文件已经把机器人和 Watchtower 放在同一个项目里。
+如果只使用群晖 Container Manager 图形界面，优先选择 `synology` 子目录创建项目。Container Manager 会自动使用该目录内的 `docker-compose.yml`，这个文件已经把机器人和 Watchtower 放在同一个项目里。
 
 ### 1. GitHub Actions
 
@@ -84,8 +84,8 @@ docker compose -f docker-compose.prod.yml up -d
 2. 进入“项目”。
 3. 选择“新增”。
 4. 项目名称填写 `mingyibot`。
-5. 路径选择放置本仓库文件的目录。
-6. Compose 文件选择 `docker-compose.synology.yml`。
+5. 路径选择本仓库里的 `synology` 子目录，例如 `/volume1/docker/MingYiBot/synology`。
+6. 使用该目录现有的 `docker-compose.yml` 创建项目。
 7. 环境变量按 `.env.example` 填写；如果镜像是私有的，额外填写 `GHCR_USERNAME` 和 `GHCR_PAT`。
 8. 创建并启动项目。
 

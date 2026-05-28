@@ -1,0 +1,63 @@
+services:
+  bot:
+    image: ghcr.io/emberigor/mingyibot:latest
+    container_name: mingyi-bot
+    restart: unless-stopped
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+    environment:
+      DRIVER: "~fastapi"
+      HOST: "0.0.0.0"
+      PORT: "8080"
+      TZ: "${TZ:-Asia/Hong_Kong}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+      COMMAND_START: '["/"]'
+      ONEBOT_ACCESS_TOKEN: "${ONEBOT_ACCESS_TOKEN:-}"
+      AICHAT_KEY: "${AICHAT_KEY:-}"
+      AICHAT_BASEURL: "${AICHAT_BASEURL:-}"
+      AICHAT_MODEL: "${AICHAT_MODEL:-}"
+      AICHAT_WEB_SEARCH: "${AICHAT_WEB_SEARCH:-false}"
+      AICHAT_DEFAULT_ROLE: "${AICHAT_DEFAULT_ROLE:-default}"
+      AICHAT_HISTORY_LIMIT: "${AICHAT_HISTORY_LIMIT:-12}"
+      AICHAT_ROLES_PATH: "${AICHAT_ROLES_PATH:-data/ai_chat_roles.json}"
+      AICHAT_SESSION_TTL_MINUTES: "${AICHAT_SESSION_TTL_MINUTES:-1440}"
+      AICHAT_MEMORY_ENABLED: "${AICHAT_MEMORY_ENABLED:-true}"
+      AICHAT_MEMORY_PATH: "${AICHAT_MEMORY_PATH:-data/ai_chat_memories.json}"
+      AICHAT_MEMORY_MAX_ITEMS: "${AICHAT_MEMORY_MAX_ITEMS:-20}"
+      AICHAT_MEMORY_SUMMARY_INTERVAL: "${AICHAT_MEMORY_SUMMARY_INTERVAL:-3}"
+      DAILYNEWS_ENABLED: "${DAILYNEWS_ENABLED:-true}"
+      DAILYNEWS_TIME: "${DAILYNEWS_TIME:-08:30}"
+      DAILYNEWS_LATEST_TIME: "${DAILYNEWS_LATEST_TIME:-10:10}"
+      DAILYNEWS_RETRY_INTERVAL_MINUTES: "${DAILYNEWS_RETRY_INTERVAL_MINUTES:-10}"
+      DAILYNEWS_REQUIRE_TODAY: "${DAILYNEWS_REQUIRE_TODAY:-true}"
+      DAILYNEWS_API_URL: "${DAILYNEWS_API_URL:-https://60s.viki.moe/v2/60s}"
+      DAILYNEWS_IMAGE_ENCODING: "${DAILYNEWS_IMAGE_ENCODING:-image}"
+      DAILYNEWS_GROUP_MODE: "${DAILYNEWS_GROUP_MODE:-blacklist}"
+      DAILYNEWS_GROUP_IDS: "${DAILYNEWS_GROUP_IDS:-[]}"
+      SUNSET_API_URL: "${SUNSET_API_URL:-https://sunsetbot.top/}"
+      SUNSET_DEFAULT_CITY: "${SUNSET_DEFAULT_CITY:-北京}"
+      SUNSET_MODEL: "${SUNSET_MODEL:-GFS}"
+      SUNSET_TIMEOUT_SECONDS: "${SUNSET_TIMEOUT_SECONDS:-10.0}"
+      SUNSET_NOTIFY_ENABLED: "${SUNSET_NOTIFY_ENABLED:-true}"
+      SUNSET_NOTIFY_TIMES: '${SUNSET_NOTIFY_TIMES:-["09:00","21:00"]}'
+      SUNSET_NOTIFY_THRESHOLD: "${SUNSET_NOTIFY_THRESHOLD:-中烧}"
+      SUNSET_OWNER_IDS: "${SUNSET_OWNER_IDS:-[]}"
+    ports:
+      - "${BOT_PORT:-8080}:8080"
+    volumes:
+      - ../data:/app/data
+      - ../logs:/app/logs
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: mingyi-watchtower
+    restart: unless-stopped
+    environment:
+      TZ: "${TZ:-Asia/Hong_Kong}"
+      WATCHTOWER_POLL_INTERVAL: "${WATCHTOWER_POLL_INTERVAL:-300}"
+      WATCHTOWER_CLEANUP: "${WATCHTOWER_CLEANUP:-true}"
+      WATCHTOWER_LABEL_ENABLE: "true"
+      REPO_USER: "${GHCR_USERNAME:-}"
+      REPO_PASS: "${GHCR_PAT:-}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

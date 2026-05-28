@@ -12,6 +12,7 @@ services:
       TZ: "${TZ:-Asia/Hong_Kong}"
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
       COMMAND_START: '["/"]'
+      SUPERUSERS: "${SUPERUSERS:-[]}"
       ONEBOT_ACCESS_TOKEN: "${ONEBOT_ACCESS_TOKEN:-}"
       AICHAT_KEY: "${AICHAT_KEY:-}"
       AICHAT_BASEURL: "${AICHAT_BASEURL:-}"

@@ -10,6 +10,7 @@ from src.common.rules import directed_to_bot
 
 from .config import Config
 from .data_source import ChatHandler
+from .memory_store import MemoryStoreError
 from .role_store import RoleStore
 
 __plugin_meta__ = PluginMetadata(
@@ -23,6 +24,7 @@ config = get_plugin_config(Config)
 role_store = RoleStore(config.aichat_roles_path, config.aichat_default_role)
 chat_handler = ChatHandler(config, role_store)
 selected_roles: dict[str, str] = {}
+MEMORY_UNAVAILABLE_TEXT = "长期记忆数据库暂不可用，请检查 MySQL 配置。"
 
 role_command = on_regex(r"^[.。]ai(?:\s+|$)(.*)$", priority=20, block=True)
 ai_chat = on_message(directed_to_bot(), priority=100, block=True)
@@ -148,7 +150,11 @@ async def _handle_role_command(event: MessageEvent, command: str, matcher) -> No
     if command in {"记忆", "memory"}:
         if not chat_handler.memory_enabled():
             await matcher.finish("AI 长期记忆未启用。")
-        await matcher.finish(_format_memory_list(chat_handler.list_memories(memory_scope)))
+        try:
+            memories = chat_handler.list_memories(memory_scope)
+        except MemoryStoreError:
+            await matcher.finish(MEMORY_UNAVAILABLE_TEXT)
+        await matcher.finish(_format_memory_list(memories))
 
     memory_content = _parse_remember_command(command)
     if memory_content is not None:
@@ -156,7 +162,10 @@ async def _handle_role_command(event: MessageEvent, command: str, matcher) -> No
             await matcher.finish("AI 长期记忆未启用。")
         if not memory_content:
             await matcher.finish("请在 .ai 记住 后面写要保存的内容。")
-        item = chat_handler.remember(memory_scope, memory_content)
+        try:
+            item = chat_handler.remember(memory_scope, memory_content)
+        except MemoryStoreError:
+            await matcher.finish(MEMORY_UNAVAILABLE_TEXT)
         if item is None:
             await matcher.finish("这条记忆是空的，没有保存。")
         await matcher.finish(f"已记住：{item['content']}")
@@ -168,11 +177,18 @@ async def _handle_role_command(event: MessageEvent, command: str, matcher) -> No
         if not forget_target:
             await matcher.finish("请指定要忘记的记忆编号，或使用 .ai 忘记 全部。")
         if forget_target in {"全部", "all"}:
-            count = chat_handler.clear_memories(memory_scope)
+            try:
+                count = chat_handler.clear_memories(memory_scope)
+            except MemoryStoreError:
+                await matcher.finish(MEMORY_UNAVAILABLE_TEXT)
             await matcher.finish(f"已清空 {count} 条长期记忆。")
         if not forget_target.isdigit():
             await matcher.finish("记忆编号应为数字，或使用 .ai 忘记 全部。")
-        if chat_handler.forget(memory_scope, forget_target):
+        try:
+            forgotten = chat_handler.forget(memory_scope, forget_target)
+        except MemoryStoreError:
+            await matcher.finish(MEMORY_UNAVAILABLE_TEXT)
+        if forgotten:
             await matcher.finish(f"已忘记第 {forget_target} 条长期记忆。")
         await matcher.finish(f"没有找到编号为 {forget_target} 的长期记忆。")
 

@@ -11,9 +11,16 @@ class Config(AIConfig):
     aichat_roles_path: str = "data/ai_chat_roles.json"
     aichat_session_ttl_minutes: int = 1440
     aichat_memory_enabled: bool = True
+    aichat_memory_backend: str = "mysql"
     aichat_memory_path: str = "data/ai_chat_memories.json"
     aichat_memory_max_items: int = 20
     aichat_memory_summary_interval: int = 3
+    mysql_host: str = ""
+    mysql_port: int = 3306
+    mysql_database: str = "mingyibot"
+    mysql_user: str = ""
+    mysql_password: str = ""
+    mysql_connect_timeout_seconds: int = 5
 
     @property
     def resolved_ai_key(self) -> str:

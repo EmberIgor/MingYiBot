@@ -17,12 +17,12 @@ from src.common.ai import (
 )
 
 from .config import Config
-from .memory_store import MemoryStore
+from .memory_store import MemoryStore, MemoryStoreError, MySQLMemoryStore, UnavailableMemoryStore
 from .role_store import RoleStore
 
 
 class ChatHandler:
-    def __init__(self, config: Config, role_store: RoleStore, memory_store: MemoryStore | None = None) -> None:
+    def __init__(self, config: Config, role_store: RoleStore, memory_store: Any | None = None) -> None:
         self.config = config
         self.role_store = role_store
         self.client: Any | None = self._create_client()
@@ -137,7 +137,11 @@ class ChatHandler:
     def _memory_items(self, memory_scope: str | None) -> list[dict[str, str]]:
         if not memory_scope or not self.memory_enabled():
             return []
-        return self.memory_store.list_memories(memory_scope)
+        try:
+            return self.memory_store.list_memories(memory_scope)
+        except MemoryStoreError as exc:
+            logger.warning("AI memory lookup skipped: {}", exc)
+            return []
 
     def _schedule_memory_summary_if_needed(
         self,
@@ -304,10 +308,31 @@ class ChatHandler:
     def _create_client(self) -> Any | None:
         return create_openai_client(self.config.resolved_ai_key, self.config.resolved_ai_baseurl)
 
-    def _create_memory_store(self) -> MemoryStore | None:
+    def _create_memory_store(self) -> Any | None:
         if not self.config.aichat_memory_enabled:
             return None
-        return MemoryStore(self.config.aichat_memory_path, self.config.aichat_memory_max_items)
+
+        backend = self.config.aichat_memory_backend.strip().lower()
+        if backend == "json":
+            return MemoryStore(self.config.aichat_memory_path, self.config.aichat_memory_max_items)
+        if backend != "mysql":
+            logger.warning("Unknown AI memory backend: {}", self.config.aichat_memory_backend)
+            return UnavailableMemoryStore("长期记忆数据库暂不可用，请检查 MySQL 配置。")
+
+        try:
+            return MySQLMemoryStore(
+                host=self.config.mysql_host,
+                port=self.config.mysql_port,
+                database=self.config.mysql_database,
+                user=self.config.mysql_user,
+                password=self.config.mysql_password,
+                connect_timeout_seconds=self.config.mysql_connect_timeout_seconds,
+                max_items=self.config.aichat_memory_max_items,
+                import_path=self.config.aichat_memory_path,
+            )
+        except MemoryStoreError as exc:
+            logger.warning("AI memory MySQL backend unavailable: {}", exc)
+            return UnavailableMemoryStore("长期记忆数据库暂不可用，请检查 MySQL 配置。")
 
     def _touch(self, session_id: str) -> None:
         self.last_active_at[session_id] = time.time()

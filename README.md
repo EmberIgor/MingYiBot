@@ -264,7 +264,7 @@ docker compose -f docker-compose.prod.yml up -d
 
 ### MySQL 测试配置
 
-这些配置目前只用于管理员命令 `.数据库测试`，用于验证机器人容器是否能连上 MySQL。后续接入真实数据库功能时可以沿用同一组连接参数。
+这些配置用于管理员命令 `.数据库测试` 和 AI 长期记忆的 MySQL 后端，用于验证并连接机器人使用的 MySQL 数据库。
 
 | 配置项 | 默认值 | 说明 |
 | --- | --- | --- |
@@ -306,9 +306,12 @@ MYSQL_PASSWORD=你的MySQL应用密码
 | `AICHAT_ROLES_PATH` | `data/ai_chat_roles.json` | 角色配置文件路径。首次启动会自动生成默认角色文件。 |
 | `AICHAT_SESSION_TTL_MINUTES` | `1440` | 会话上下文过期时间，单位分钟。 |
 | `AICHAT_MEMORY_ENABLED` | `true` | 是否启用 AI 长期记忆。 |
-| `AICHAT_MEMORY_PATH` | `data/ai_chat_memories.json` | 长期记忆持久化文件路径。 |
+| `AICHAT_MEMORY_BACKEND` | `mysql` | 长期记忆存储后端，可选 `mysql` 或 `json`；默认使用 MySQL。 |
+| `AICHAT_MEMORY_PATH` | `data/ai_chat_memories.json` | JSON 记忆文件路径。MySQL 后端首次启动时会从这里导入旧记忆，之后保留为回滚备份。 |
 | `AICHAT_MEMORY_MAX_ITEMS` | `20` | 每个用户最多保留的长期记忆条数。 |
 | `AICHAT_MEMORY_SUMMARY_INTERVAL` | `3` | 每个用户每多少轮成功对话触发一次后台自动总结；小于等于 0 时不自动总结。 |
+
+默认 MySQL 后端会在启动时自动创建 `ai_chat_memories` 表，并按内容去重导入 `AICHAT_MEMORY_PATH` 指向的旧 JSON 记忆文件。若 MySQL 配置缺失或连接失败，AI 聊天仍可使用，但长期记忆命令会提示数据库暂不可用；如需临时回滚，可设置 `AICHAT_MEMORY_BACKEND=json` 并重启。
 
 ### 每日新闻配置
 

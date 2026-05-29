@@ -137,10 +137,12 @@ WATCHTOWER_HTTP_API_TOKEN=一串随机长字符串
 
 只改机器人代码时，把代码推送到 `main`，等待 GitHub Actions 构建成功和 Watchtower 自动拉取即可。
 
-如果本次更新涉及以下内容，Watchtower 不会自动应用，需要在群晖 Container Manager 中手动重启/重建项目：
+如果本次更新只修改了机器人运行时读取的 `.env` 配置，例如 `AICHAT_*`、`AI_*`、`DAILYNEWS_*`、`SUNSET_*`、`WATCHTOWER_HTTP_API_*`，更新 `.env` 后重启 `mingyi-bot` 容器即可。项目启动时会主动读取挂载到容器内的 `/app/.env`，并覆盖 Docker 创建容器时注入的旧环境变量。
+
+如果本次更新涉及以下内容，Watchtower 不会自动应用，普通容器重启也不一定生效，需要在群晖 Container Manager 中重建项目，或用 SSH 执行 `docker compose up -d --force-recreate`：
 
 - `docker-compose.yml`、`synology/docker-compose.yml` 等 Compose 文件。
-- `.env` 中的配置项。
+- `.env` 中会影响 Docker/Compose 本身的配置项，例如 `BOT_PORT`、`WATCHTOWER_POLL_INTERVAL`、`WATCHTOWER_CLEANUP`。
 - 端口、挂载目录、`env_file`、`volumes`、`environment`、网络等容器配置。
 - `data/` 下已经持久化的运行时配置，例如 `data/ai_chat_roles.json`。
 

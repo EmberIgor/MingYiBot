@@ -82,9 +82,9 @@ def _test_mysql_connection() -> MySQLTestResult:
             user=config.mysql_user,
             password=config.mysql_password,
             database=config.mysql_database,
-            connection_timeout=config.mysql_connect_timeout_seconds,
+            connection_timeout=max(1, int(config.mysql_connect_timeout_seconds)),
         )
-    except MySQLError as exc:
+    except (MySQLError, TypeError, ValueError) as exc:
         raise MySQLTestError(str(exc)) from exc
 
     try:

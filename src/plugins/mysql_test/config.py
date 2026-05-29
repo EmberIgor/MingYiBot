@@ -7,4 +7,4 @@ class Config(BaseModel):
     mysql_database: str = "mingyibot"
     mysql_user: str = ""
     mysql_password: str = ""
-    mysql_connect_timeout_seconds: float = 5.0
+    mysql_connect_timeout_seconds: int = 5

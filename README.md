@@ -273,7 +273,7 @@ docker compose -f docker-compose.prod.yml up -d
 | `MYSQL_DATABASE` | `mingyibot` | 测试连接时使用的数据库名。 |
 | `MYSQL_USER` | `mingyi` | 测试连接时使用的数据库用户名。 |
 | `MYSQL_PASSWORD` | 空 | `MYSQL_USER` 对应的密码。 |
-| `MYSQL_CONNECT_TIMEOUT_SECONDS` | `5.0` | 连接超时时间，单位秒。 |
+| `MYSQL_CONNECT_TIMEOUT_SECONDS` | `5` | 连接超时时间，单位秒。 |
 
 群晖上如果是单独创建的 MySQL 容器，机器人 `.env` 可以先这样填：
 

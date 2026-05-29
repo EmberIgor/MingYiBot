@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import sys
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -14,8 +16,8 @@ from .config import Config
 
 __plugin_meta__ = PluginMetadata(
     name="deploy",
-    description="管理员手动触发 Watchtower 立即检查并更新镜像。",
-    usage=".更新\n.部署更新",
+    description="管理员手动触发 Watchtower 更新，或重启机器人以重新读取配置。",
+    usage=".更新\n.部署更新\n.重启\n.重载配置",
     config=Config,
 )
 
@@ -23,6 +25,11 @@ __plugin_meta__ = PluginMetadata(
 config = get_plugin_config(Config)
 driver = get_driver()
 deploy_update = on_regex(r"^[.。](?:更新|部署更新)$", priority=8, block=True)
+bot_restart = on_regex(
+    r"^[.。](?:重启|重启机器人|重新启动|重载配置|重新加载配置|重载env|重新加载env)$",
+    priority=8,
+    block=True,
+)
 
 
 @deploy_update.handle()
@@ -40,6 +47,15 @@ async def handle_deploy_update(event: MessageEvent) -> None:
         await deploy_update.finish(MessageSegment.text(f"触发镜像更新失败：{exc}"))
 
     await deploy_update.finish(MessageSegment.text("已触发 Watchtower 检查更新，若有新镜像会自动拉取并重启。"))
+
+
+@bot_restart.handle()
+async def handle_bot_restart(event: MessageEvent) -> None:
+    if not _is_superuser(event):
+        await bot_restart.finish(MessageSegment.text("只有管理员可以重启机器人。"))
+
+    await bot_restart.send(MessageSegment.text("正在重启机器人并重新读取 .env。"))
+    asyncio.create_task(_restart_process())
 
 
 def _is_superuser(event: MessageEvent) -> bool:
@@ -74,6 +90,16 @@ def _update_url() -> str:
     separator = "&" if "?" in config.watchtower_http_api_url else "?"
     query = urlencode({"image": config.watchtower_update_image, "async": "true"})
     return f"{config.watchtower_http_api_url}{separator}{query}"
+
+
+async def _restart_process() -> None:
+    await asyncio.sleep(1.0)
+    logger.warning("Restarting bot process by admin command.")
+    try:
+        os.execv(sys.executable, [sys.executable, *sys.argv])
+    except Exception as exc:
+        logger.exception("Bot process re-exec failed: {}", exc)
+        os._exit(1)
 
 
 class DeployUpdateError(RuntimeError):

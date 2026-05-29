@@ -137,7 +137,7 @@ WATCHTOWER_HTTP_API_TOKEN=一串随机长字符串
 
 只改机器人代码时，把代码推送到 `main`，等待 GitHub Actions 构建成功和 Watchtower 自动拉取即可。
 
-如果本次更新只修改了机器人运行时读取的 `.env` 配置，例如 `AICHAT_*`、`AI_*`、`DAILYNEWS_*`、`SUNSET_*`、`WATCHTOWER_HTTP_API_*`，更新 `.env` 后重启 `mingyi-bot` 容器即可。项目启动时会主动读取挂载到容器内的 `/app/.env`，并覆盖 Docker 创建容器时注入的旧环境变量。
+如果本次更新只修改了机器人运行时读取的 `.env` 配置，例如 `AICHAT_*`、`AI_*`、`DAILYNEWS_*`、`SUNSET_*`、`WATCHTOWER_HTTP_API_*`，更新 `.env` 后发送 `.重载配置`，或重启 `mingyi-bot` 容器即可。项目启动时会主动读取挂载到容器内的 `/app/.env`，并覆盖 Docker 创建容器时注入的旧环境变量。
 
 如果本次更新涉及以下内容，Watchtower 不会自动应用，普通容器重启也不一定生效，需要在群晖 Container Manager 中重建项目，或用 SSH 执行 `docker compose up -d --force-recreate`：
 
@@ -171,7 +171,7 @@ docker compose -f docker-compose.prod.yml up -d
 - COC7 工具：支持基础骰子、技能检定和快速调查员生成。
 - 火烧云查询：查询指定城市今日、明日的日出/日落火烧云分析；支持定时私聊提醒。
 - 每日新闻：手动获取 60s 每日新闻图片；支持每天定时向群推送。
-- 部署更新：管理员可以在 QQ 中触发 Watchtower 立即检查新镜像。
+- 部署更新：管理员可以在 QQ 中触发 Watchtower 立即检查新镜像，也可以重启机器人重新读取 `.env`。
 
 ## 用户可用命令
 
@@ -184,6 +184,7 @@ docker compose -f docker-compose.prod.yml up -d
 | `.help` | 查看用户可用指令摘要。也可以写作 `.帮助`、`.菜单`，并支持中文句号。 | `.help` |
 | `.ping` | 检查机器人是否在线，回复 `pong`。也可以写作 `.状态`。 | `.ping` |
 | `.更新` | 管理员触发 Watchtower 立即检查并更新镜像。也可以写作 `.部署更新`。 | `.更新` |
+| `.重启` | 管理员重启机器人进程并重新读取 `.env`。也可以写作 `.重启机器人`、`.重载配置`、`.重新加载配置`。 | `.重载配置` |
 
 ### AI 聊天
 

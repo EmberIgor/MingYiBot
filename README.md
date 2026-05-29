@@ -171,6 +171,7 @@ docker compose -f docker-compose.prod.yml up -d
 - COC7 工具：支持基础骰子、技能检定和快速调查员生成。
 - 火烧云查询：查询指定城市今日、明日的日出/日落火烧云分析；支持定时私聊提醒。
 - 每日新闻：手动获取 60s 每日新闻图片；支持每天定时向群推送。
+- MySQL 自检：管理员可以测试 MySQL 连接，方便后续接入数据库功能前先验证群晖配置。
 - 部署更新：管理员可以在 QQ 中触发 Watchtower 立即检查新镜像，也可以重启机器人重新读取 `.env`。
 
 ## 用户可用命令
@@ -183,6 +184,7 @@ docker compose -f docker-compose.prod.yml up -d
 | --- | --- | --- |
 | `.help` | 查看用户可用指令摘要。也可以写作 `.帮助`、`.菜单`，并支持中文句号。 | `.help` |
 | `.ping` | 检查机器人是否在线，回复 `pong`。也可以写作 `.状态`。 | `.ping` |
+| `.数据库测试` | 管理员测试 MySQL 是否可连接。也可以写作 `.mysql测试`、`.db测试`，并支持中文句号。 | `.数据库测试` |
 | `.更新` | 管理员触发 Watchtower 立即检查并更新镜像。也可以写作 `.部署更新`。 | `.更新` |
 | `.重启` | 管理员重启机器人进程并重新读取 `.env`。 | `.重启` |
 
@@ -260,6 +262,29 @@ docker compose -f docker-compose.prod.yml up -d
 | `WATCHTOWER_UPDATE_IMAGE` | `ghcr.io/emberigor/mingyibot:latest` | 手动触发更新时检查的镜像。 |
 | `WATCHTOWER_HTTP_TIMEOUT_SECONDS` | `10` | 机器人请求 Watchtower HTTP API 的超时时间，单位秒。 |
 
+### MySQL 测试配置
+
+这些配置目前只用于管理员命令 `.数据库测试`，用于验证机器人容器是否能连上 MySQL。后续接入真实数据库功能时可以沿用同一组连接参数。
+
+| 配置项 | 默认值 | 说明 |
+| --- | --- | --- |
+| `MYSQL_HOST` | 空 | MySQL 地址。如果 MySQL 和机器人在同一个 Compose 项目网络里，可以填 `mysql`；如果 MySQL 是群晖界面单独创建的容器，可以填群晖局域网 IP。 |
+| `MYSQL_PORT` | `3306` | MySQL 端口。同 Compose 网络里通常填容器端口 `3306`；通过群晖局域网 IP 访问时，填 DSM 端口映射里的本地端口，例如 `13306`。 |
+| `MYSQL_DATABASE` | `mingyibot` | 测试连接时使用的数据库名。 |
+| `MYSQL_USER` | `mingyi` | 测试连接时使用的数据库用户名。 |
+| `MYSQL_PASSWORD` | 空 | `MYSQL_USER` 对应的密码。 |
+| `MYSQL_CONNECT_TIMEOUT_SECONDS` | `5.0` | 连接超时时间，单位秒。 |
+
+群晖上如果是单独创建的 MySQL 容器，机器人 `.env` 可以先这样填：
+
+```dotenv
+MYSQL_HOST=群晖局域网IP
+MYSQL_PORT=13306
+MYSQL_DATABASE=mingyibot
+MYSQL_USER=mingyi
+MYSQL_PASSWORD=你的MySQL应用密码
+```
+
 ### AI 聊天配置
 
 公共 AI 配置可供未来其他插件复用；`ai_chat` 会优先读取自己的 `AICHAT_*` 配置，未配置时回退到公共 AI 配置。联网工具开关保留在插件维度，不提供全局 `AI_WEB_SEARCH`。
@@ -328,7 +353,9 @@ docker compose -f docker-compose.prod.yml up -d
         ├── ai_chat
         ├── coc7
         ├── daily_news
+        ├── deploy
         ├── help
+        ├── mysql_test
         ├── ping
         ├── repeater
         ├── startup_notify

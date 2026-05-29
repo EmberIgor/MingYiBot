@@ -6,6 +6,7 @@ from nonebot.plugin import PluginMetadata
 HELP_TEXT = """可用指令：
 .help、.帮助、。菜单 - 查看这份指令说明
 .ping、.状态 - 检查机器人是否在线
+.数据库测试、.mysql测试、.db测试 - 管理员测试 MySQL 连接
 .更新、.部署更新 - 管理员触发镜像更新
 .重启 - 管理员重启机器人并重新读取 .env
 今日新闻、.今日新闻、。今日新闻 - 获取今日 60s 新闻

@@ -17,7 +17,7 @@ from .config import Config
 __plugin_meta__ = PluginMetadata(
     name="deploy",
     description="管理员手动触发 Watchtower 更新，或重启机器人以重新读取配置。",
-    usage=".更新\n.部署更新\n.重启\n.重载配置",
+    usage=".更新\n.部署更新\n.重启",
     config=Config,
 )
 
@@ -25,11 +25,7 @@ __plugin_meta__ = PluginMetadata(
 config = get_plugin_config(Config)
 driver = get_driver()
 deploy_update = on_regex(r"^[.。](?:更新|部署更新)$", priority=8, block=True)
-bot_restart = on_regex(
-    r"^[.。](?:重启|重启机器人|重新启动|重载配置|重新加载配置|重载env|重新加载env)$",
-    priority=8,
-    block=True,
-)
+bot_restart = on_regex(r"^[.。]重启$", priority=8, block=True)
 
 
 @deploy_update.handle()

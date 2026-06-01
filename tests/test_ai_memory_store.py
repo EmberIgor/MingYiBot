@@ -11,6 +11,7 @@ import nonebot
 
 nonebot.init()
 
+import src.plugins.ai_chat.data_source as ai_chat_data_source
 from src.common.db import MySQLConfig, missing_mysql_config_keys
 from src.plugins.ai_chat.config import Config
 from src.plugins.ai_chat.data_source import ChatHandler
@@ -30,6 +31,10 @@ class FakeAIResponse:
     output_text = "ok"
 
 
+class FakeOrganizeResponse:
+    output_text = '{"memories":["用户喜欢简洁回答"],"forget":[]}'
+
+
 class RecordingChatHandler(ChatHandler):
     def __init__(self, config: Config, role_store: StubRoleStore) -> None:
         self.recorded_web_search: bool | None = None
@@ -41,6 +46,11 @@ class RecordingChatHandler(ChatHandler):
     async def _request_ai(self, *args: Any, web_search: bool | None = None, **kwargs: Any) -> Any:
         self.recorded_web_search = web_search
         return FakeAIResponse()
+
+
+class ClientChatHandler(ChatHandler):
+    def _create_client(self) -> object:
+        return object()
 
 
 class AIMemoryStoreTest(unittest.TestCase):
@@ -68,6 +78,92 @@ class AIMemoryStoreTest(unittest.TestCase):
             self.assertEqual(
                 [item["content"] for item in handler.list_memories("user:1")],
                 ["第二条记忆", "第三条记忆"],
+            )
+
+    def test_json_backend_merges_similar_summary_memories(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = str(Path(directory) / "memories.json")
+            config = Config(aichat_memory_backend="json", aichat_memory_path=path, aichat_memory_max_items=5)
+            handler = ChatHandler(config, StubRoleStore())
+
+            asyncio.run(
+                handler.remember_async(
+                    "user:1",
+                    "用户关注 DND 5e 规则问题，可能会询问法术、动作经济等规则细节。",
+                    source="summary",
+                    category="profile",
+                    confidence=0.7,
+                )
+            )
+            asyncio.run(
+                handler.remember_async(
+                    "user:1",
+                    "用户关注 DND 5e 规则问题，尤其是动作、附赠动作、反应和法术反制等战斗/施法机制。",
+                    source="summary",
+                    category="profile",
+                    confidence=0.7,
+                )
+            )
+
+            memories = handler.list_memories("user:1")
+            self.assertEqual(len(memories), 1)
+            self.assertEqual(
+                memories[0]["content"],
+                "用户关注 DND 5e 规则问题，尤其是动作、附赠动作、反应和法术反制等战斗/施法机制。",
+            )
+
+    def test_explicit_chat_memory_can_replace_old_manual_memory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = str(Path(directory) / "memories.json")
+            config = Config(aichat_memory_backend="json", aichat_memory_path=path, aichat_memory_max_items=5)
+            handler = ChatHandler(config, StubRoleStore())
+
+            asyncio.run(handler.remember_async("user:1", "用户希望机器人以后称呼他为 A"))
+            asyncio.run(
+                handler.remember_async(
+                    "user:1",
+                    "用户希望机器人以后称呼他为 B",
+                    source="explicit_chat",
+                    category="profile",
+                    confidence=0.95,
+                )
+            )
+
+            self.assertEqual(
+                [item["content"] for item in handler.list_memories("user:1")],
+                ["用户希望机器人以后称呼他为 B"],
+            )
+
+    def test_ai_memory_organize_replaces_existing_memories(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = str(Path(directory) / "memories.json")
+            config = Config(
+                aichat_memory_backend="json",
+                aichat_memory_path=path,
+                aichat_memory_max_items=5,
+                aichat_key="key",
+                aichat_model="model",
+            )
+            handler = ClientChatHandler(config, StubRoleStore())
+            asyncio.run(handler.remember_async("user:1", "用户关注 DND 5e 规则问题"))
+            asyncio.run(handler.remember_async("user:1", "用户喜欢简洁回答"))
+
+            original_request_response = ai_chat_data_source.request_response
+
+            async def fake_request_response(*_: Any, **__: Any) -> FakeOrganizeResponse:
+                return FakeOrganizeResponse()
+
+            ai_chat_data_source.request_response = fake_request_response
+            try:
+                result = asyncio.run(handler.organize_memories_async("user:1"))
+            finally:
+                ai_chat_data_source.request_response = original_request_response
+
+            self.assertEqual(result["mode"], "ai")
+            self.assertEqual(result["kept"], 1)
+            self.assertEqual(
+                [item["content"] for item in handler.list_memories("user:1")],
+                ["用户喜欢简洁回答"],
             )
 
     def test_ask_accepts_runtime_web_search_override(self) -> None:
@@ -125,7 +221,7 @@ class AIMemoryStoreTest(unittest.TestCase):
             confidence=2.0,
         )
 
-        insert_sql, insert_params = connection.executed[0]
+        insert_sql, insert_params = next(item for item in connection.executed if "INSERT INTO" in item[0])
         self.assertIn("ON DUPLICATE KEY UPDATE", insert_sql)
         self.assertEqual(insert_params[0], "user:1")
         self.assertEqual(insert_params[1], "hello world")
@@ -161,6 +257,7 @@ class FakeCursor:
         self.lastrowid = 42
         self.rowcount = 0
         self._next_fetchone: Any = None
+        self._next_fetchall: list[Any] = []
 
     def __enter__(self) -> "FakeCursor":
         return self
@@ -170,12 +267,17 @@ class FakeCursor:
 
     def execute(self, sql: str, params: tuple[Any, ...] = ()) -> None:
         self.executed.append((sql, params))
-        if "SELECT COUNT(*)" in sql:
+        if "SELECT id, content, source, category, confidence, created_at, updated_at" in sql and "WHERE scope" in sql:
+            self._next_fetchall = []
+        elif "SELECT COUNT(*)" in sql:
             self._next_fetchone = (1,)
-        elif "SELECT id, content, created_at, updated_at" in sql:
+        elif "SELECT id, content, source, category, confidence, created_at, updated_at" in sql:
             self._next_fetchone = {
                 "id": 42,
                 "content": "hello world",
+                "source": "ai_summary",
+                "category": "profile",
+                "confidence": 1.0,
                 "created_at": datetime(2026, 1, 1, 0, 0, 0),
                 "updated_at": datetime(2026, 1, 1, 0, 0, 0),
             }
@@ -183,6 +285,11 @@ class FakeCursor:
     def fetchone(self) -> Any:
         value = self._next_fetchone
         self._next_fetchone = None
+        return value
+
+    def fetchall(self) -> list[Any]:
+        value = self._next_fetchall
+        self._next_fetchall = []
         return value
 
 

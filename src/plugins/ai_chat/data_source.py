@@ -176,6 +176,60 @@ class ChatHandler:
             return 0
         return await self._call_memory_store(self.memory_store.clear_memories, memory_scope)
 
+    def compact_memories(self, memory_scope: str) -> dict[str, int]:
+        if not self.memory_enabled():
+            return {"kept": 0, "removed": 0}
+        return self.memory_store.compact_memories(memory_scope)
+
+    async def compact_memories_async(self, memory_scope: str) -> dict[str, int]:
+        if not self.memory_enabled():
+            return {"kept": 0, "removed": 0}
+        return await self._call_memory_store(self.memory_store.compact_memories, memory_scope)
+
+    async def organize_memories_async(self, memory_scope: str) -> dict[str, int | str]:
+        if not self.memory_enabled():
+            return {"kept": 0, "removed": 0, "mode": "local"}
+
+        existing_memories = await self._memory_items(memory_scope)
+        if len(existing_memories) <= 1:
+            return {"kept": len(existing_memories), "removed": 0, "mode": "none"}
+
+        if not self.client or not self.config.resolved_ai_model:
+            result = await self.compact_memories_async(memory_scope)
+            return {**result, "mode": "local"}
+
+        try:
+            response = await request_response(
+                self.client,
+                model=self.config.resolved_ai_model,
+                instructions=self._memory_organize_instructions(),
+                messages=[
+                    {
+                        "role": "user",
+                        "content": self._format_memory_organize_input(existing_memories),
+                    }
+                ],
+                stream=False,
+            )
+            organized_memories = self._extract_memory_summaries(response)
+            if not organized_memories:
+                result = await self.compact_memories_async(memory_scope)
+                return {**result, "mode": "local"}
+
+            result = await self._call_memory_store(
+                self.memory_store.replace_memories,
+                memory_scope,
+                organized_memories[: self.config.aichat_memory_max_items],
+                source="manual",
+                category="organized",
+                confidence=0.9,
+            )
+            return {**result, "mode": "ai"}
+        except Exception as exc:
+            logger.warning("AI memory organize fell back to local compaction: {}", exc)
+            result = await self.compact_memories_async(memory_scope)
+            return {**result, "mode": "local"}
+
     async def _memory_items(self, memory_scope: str | None) -> list[dict[str, str]]:
         if not memory_scope or not self.memory_enabled():
             return []
@@ -221,22 +275,27 @@ class ChatHandler:
             return
 
         try:
+            existing_memories = await self._memory_items(memory_scope)
             response = await request_response(
                 self.client,
                 model=self.config.resolved_ai_model,
                 instructions=self._memory_summary_instructions(),
                 messages=[
-                    {"role": "user", "content": self._format_memory_summary_input(recent_turns)}
+                    {
+                        "role": "user",
+                        "content": self._format_memory_summary_input(recent_turns, existing_memories),
+                    }
                 ],
                 stream=False,
             )
             for memory in self._extract_memory_summaries(response):
+                source = self._memory_summary_source(memory, recent_turns)
                 await self.remember_async(
                     memory_scope,
                     memory,
-                    source="summary",
+                    source=source,
                     category="profile",
-                    confidence=0.7,
+                    confidence=0.95 if source == "explicit_chat" else 0.7,
                 )
         except Exception as exc:
             logger.exception("AI memory summary failed: {}", exc)
@@ -265,18 +324,53 @@ class ChatHandler:
     def _memory_summary_instructions(self) -> str:
         return (
             "你负责从 QQ 聊天中提炼长期记忆。只记录用户长期偏好、身份背景、稳定事实、持续目标。"
+            "如果现有长期记忆已经覆盖了同一信息，不要重复输出；只有更明确、更具体或用户明确改口时才输出新记忆。"
             "不要记录新闻、天气、价格、政策、活动、日期相关状态等易变信息。"
             "不要记录图片 URL，也不要因为出现 [image] 就记忆图片内容。"
+            "普通聊天话题不等于长期记忆，不要把“用户聊到了某主题”保存为记忆。"
             "如果没有值得长期记住的信息，返回 {\"memories\":[],\"forget\":[]}。"
             "只输出 JSON，格式必须是 {\"memories\":[\"短记忆\"],\"forget\":[]}。"
         )
 
-    def _format_memory_summary_input(self, recent_turns: list[dict[str, str]]) -> str:
+    def _memory_organize_instructions(self) -> str:
+        return (
+            "你负责整理用户现有长期记忆。合并重复或高度相似的条目，删除空泛、临时、过期、互相矛盾的旧条目。"
+            "如果多条记忆冲突，保留更明确、更具体、更像用户当前偏好的条目；不要编造列表中没有的信息。"
+            "保留用户明确要求机器人遵守的稳定偏好、称呼、背景和长期目标。"
+            "输出条目要短、具体、可直接作为长期记忆使用。"
+            "只输出 JSON，格式必须是 {\"memories\":[\"整理后的短记忆\"],\"forget\":[]}。"
+        )
+
+    def _format_memory_summary_input(
+        self,
+        recent_turns: list[dict[str, str]],
+        existing_memories: list[dict[str, str]] | None = None,
+    ) -> str:
         lines = ["请从以下最近对话中提炼可长期保存的用户记忆："]
+        if existing_memories:
+            lines.append("当前已有长期记忆：")
+            lines.extend(f"- {item['content']}" for item in existing_memories)
+            lines.append("最近对话：")
         for item in recent_turns:
             role = "用户" if item["role"] == "user" else "AI"
             lines.append(f"{role}: {item['content']}")
         return "\n".join(lines)
+
+    def _format_memory_organize_input(self, memories: list[dict[str, str]]) -> str:
+        lines = ["请整理以下长期记忆，只返回整理后的当前有效记忆："]
+        lines.extend(f"{index}. {item['content']}" for index, item in enumerate(memories, 1))
+        return "\n".join(lines)
+
+    def _memory_summary_source(self, memory: str, recent_turns: list[dict[str, str]]) -> str:
+        user_text = "\n".join(item["content"] for item in recent_turns if item.get("role") == "user")
+        explicit_patterns = (
+            r"(以后|之后|往后|从现在|从今).{0,30}(叫我|称呼我|叫|称呼|记住|不要|改成)",
+            r"(叫我|称呼我|把我叫作|把我的.{0,10}改成|我的称呼改成)",
+            r"(记住|请记住).{0,80}(我|我的|以后|偏好|喜欢|不喜欢|叫|称呼)",
+        )
+        if any(re.search(pattern, user_text) for pattern in explicit_patterns):
+            return "explicit_chat"
+        return "summary"
 
     def _extract_memory_summaries(self, response: Any) -> list[str]:
         content = extract_content(response).strip()

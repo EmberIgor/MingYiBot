@@ -17,7 +17,7 @@ from .role_store import RoleStore
 __plugin_meta__ = PluginMetadata(
     name="ai_chat",
     description="在机器人被 @ 且未命中其他命令时提供 AI 聊天兜底能力",
-    usage="@机器人 聊天内容\n.ai [角色名|列表|重载|重置|记忆|记住|忘记]",
+    usage="@机器人 聊天内容\n.ai [角色名|列表|重载|重置|记忆|记住|忘记|整理记忆]",
     config=Config,
 )
 
@@ -185,6 +185,21 @@ async def _handle_role_command(event: MessageEvent, command: str, matcher) -> No
         except MemoryStoreError:
             await matcher.finish(MEMORY_UNAVAILABLE_TEXT)
         await matcher.finish(_format_memory_list(memories))
+
+    if command in {"整理记忆", "整理长期记忆", "organize memory", "tidy memory", "compact memory"}:
+        if not chat_handler.memory_enabled():
+            await matcher.finish("AI 长期记忆未启用。")
+        try:
+            result = await chat_handler.organize_memories_async(memory_scope)
+        except MemoryStoreError:
+            await matcher.finish(MEMORY_UNAVAILABLE_TEXT)
+        mode = str(result.get("mode", "local"))
+        mode_text = "AI" if mode == "ai" else "本地规则"
+        if mode == "none":
+            await matcher.finish(f"当前长期记忆较少，无需整理；保留 {result['kept']} 条。")
+        await matcher.finish(
+            f"已用{mode_text}整理长期记忆：保留 {result['kept']} 条，合并/移除 {result['removed']} 条。"
+        )
 
     memory_content = _parse_remember_command(command)
     if memory_content is not None:

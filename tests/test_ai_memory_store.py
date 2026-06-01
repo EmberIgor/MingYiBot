@@ -12,6 +12,7 @@ import nonebot
 nonebot.init()
 
 import src.plugins.ai_chat.data_source as ai_chat_data_source
+from src.plugins.ai_chat import _format_memory_list, _memory_id_for_display_index
 from src.common.db import MySQLConfig, missing_mysql_config_keys
 from src.plugins.ai_chat.config import Config
 from src.plugins.ai_chat.data_source import ChatHandler
@@ -79,6 +80,20 @@ class AIMemoryStoreTest(unittest.TestCase):
                 [item["content"] for item in handler.list_memories("user:1")],
                 ["第二条记忆", "第三条记忆"],
             )
+
+    def test_memory_list_uses_contiguous_display_indexes(self) -> None:
+        memories = [
+            {"id": "6", "content": "第六条真实 ID 记忆"},
+            {"id": "9", "content": "第九条真实 ID 记忆"},
+        ]
+
+        self.assertEqual(
+            _format_memory_list(memories),
+            "当前长期记忆：\n1. 第六条真实 ID 记忆\n2. 第九条真实 ID 记忆",
+        )
+        self.assertEqual(_memory_id_for_display_index(memories, "1"), "6")
+        self.assertEqual(_memory_id_for_display_index(memories, "2"), "9")
+        self.assertIsNone(_memory_id_for_display_index(memories, "6"))
 
     def test_json_backend_merges_similar_summary_memories(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

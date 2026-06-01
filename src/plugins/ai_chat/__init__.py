@@ -167,8 +167,18 @@ def _format_memory_list(memories: list[dict[str, str]]) -> str:
         return "当前还没有长期记忆。"
 
     lines = ["当前长期记忆："]
-    lines.extend(f"{item['id']}. {item['content']}" for item in memories)
+    lines.extend(f"{index}. {item['content']}" for index, item in enumerate(memories, 1))
     return "\n".join(lines)
+
+
+def _memory_id_for_display_index(memories: list[dict[str, str]], display_index: str) -> str | None:
+    if not display_index.isdigit():
+        return None
+    index = int(display_index)
+    if index < 1 or index > len(memories):
+        return None
+    memory_id = str(memories[index - 1].get("id", "")).strip()
+    return memory_id or None
 
 
 async def _handle_role_command(event: MessageEvent, command: str, matcher) -> None:
@@ -238,7 +248,11 @@ async def _handle_role_command(event: MessageEvent, command: str, matcher) -> No
         if not forget_target.isdigit():
             await matcher.finish("记忆编号应为数字，或使用 .ai 忘记 全部。")
         try:
-            forgotten = await chat_handler.forget_async(memory_scope, forget_target)
+            memories = await chat_handler.list_memories_async(memory_scope)
+            memory_id = _memory_id_for_display_index(memories, forget_target)
+            if memory_id is None:
+                await matcher.finish(f"没有找到编号为 {forget_target} 的长期记忆。")
+            forgotten = await chat_handler.forget_async(memory_scope, memory_id)
         except MemoryStoreError:
             await matcher.finish(MEMORY_UNAVAILABLE_TEXT)
         if forgotten:

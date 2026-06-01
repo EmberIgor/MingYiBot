@@ -1,7 +1,8 @@
 from src.common.ai import AIConfig
+from src.common.db import MySQLConfig
 
 
-class Config(AIConfig):
+class Config(AIConfig, MySQLConfig):
     aichat_key: str = ""
     aichat_baseurl: str = ""
     aichat_model: str = ""
@@ -15,12 +16,6 @@ class Config(AIConfig):
     aichat_memory_path: str = "data/ai_chat_memories.json"
     aichat_memory_max_items: int = 20
     aichat_memory_summary_interval: int = 3
-    mysql_host: str = ""
-    mysql_port: int = 3306
-    mysql_database: str = "mingyibot"
-    mysql_user: str = ""
-    mysql_password: str = ""
-    mysql_connect_timeout_seconds: int = 5
 
     @property
     def resolved_ai_key(self) -> str:

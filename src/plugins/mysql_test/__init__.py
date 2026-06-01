@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-import time
-from dataclasses import dataclass
 
 from nonebot import get_driver, get_plugin_config, logger, on_regex
 from nonebot.adapters.onebot.v11 import MessageEvent, MessageSegment
 from nonebot.plugin import PluginMetadata
+from src.common.db import DatabaseError, check_mysql_connection, missing_mysql_config_keys
 
 from .config import Config
 
@@ -58,56 +57,14 @@ def _is_superuser(event: MessageEvent) -> bool:
 
 
 def _missing_config_keys() -> list[str]:
-    required_values = {
-        "MYSQL_HOST": config.mysql_host,
-        "MYSQL_USER": config.mysql_user,
-        "MYSQL_PASSWORD": config.mysql_password,
-        "MYSQL_DATABASE": config.mysql_database,
-    }
-    return [key for key, value in required_values.items() if not str(value).strip()]
+    return missing_mysql_config_keys(config)
 
 
-def _test_mysql_connection() -> MySQLTestResult:
+def _test_mysql_connection():
     try:
-        import mysql.connector
-        from mysql.connector import Error as MySQLError
-    except ImportError as exc:
-        raise MySQLTestError("缺少 mysql-connector-python 依赖，请更新镜像或重新安装 requirements.txt。") from exc
-
-    started_at = time.monotonic()
-    try:
-        connection = mysql.connector.connect(
-            host=config.mysql_host,
-            port=config.mysql_port,
-            user=config.mysql_user,
-            password=config.mysql_password,
-            database=config.mysql_database,
-            connection_timeout=max(1, int(config.mysql_connect_timeout_seconds)),
-        )
-    except (MySQLError, TypeError, ValueError) as exc:
+        return check_mysql_connection(config)
+    except DatabaseError as exc:
         raise MySQLTestError(str(exc)) from exc
-
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT VERSION(), DATABASE()")
-            row = cursor.fetchone()
-    except MySQLError as exc:
-        raise MySQLTestError(str(exc)) from exc
-    finally:
-        connection.close()
-
-    if not row:
-        raise MySQLTestError("数据库没有返回测试结果。")
-
-    elapsed_ms = (time.monotonic() - started_at) * 1000
-    return MySQLTestResult(version=str(row[0]), database=str(row[1]), elapsed_ms=elapsed_ms)
-
-
-@dataclass(frozen=True)
-class MySQLTestResult:
-    version: str
-    database: str
-    elapsed_ms: float
 
 
 class MySQLTestError(RuntimeError):

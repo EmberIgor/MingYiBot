@@ -311,7 +311,7 @@ MYSQL_PASSWORD=你的MySQL应用密码
 | `AICHAT_MEMORY_MAX_ITEMS` | `20` | 每个用户最多保留的长期记忆条数。 |
 | `AICHAT_MEMORY_SUMMARY_INTERVAL` | `3` | 每个用户每多少轮成功对话触发一次后台自动总结；小于等于 0 时不自动总结。 |
 
-默认 MySQL 后端会在启动时自动创建 `ai_chat_memories` 表，并按内容去重导入 `AICHAT_MEMORY_PATH` 指向的旧 JSON 记忆文件。若 MySQL 配置缺失或连接失败，AI 聊天仍可使用，但长期记忆命令会提示数据库暂不可用；如需临时回滚，可设置 `AICHAT_MEMORY_BACKEND=json` 并重启。
+默认 MySQL 后端会在启动时通过轻量 migration 创建或升级 `ai_chat_memories` 表，并按内容去重导入 `AICHAT_MEMORY_PATH` 指向的旧 JSON 记忆文件。记忆表会保存来源、分类、置信度、最近使用时间和归档标记，方便后续治理；重复内容写入使用数据库原子去重更新。若 MySQL 配置缺失或连接失败，AI 聊天仍可使用，但长期记忆命令会提示数据库暂不可用；如需临时回滚，可设置 `AICHAT_MEMORY_BACKEND=json` 并重启。
 
 ### 每日新闻配置
 
@@ -349,10 +349,11 @@ MYSQL_PASSWORD=你的MySQL应用密码
 ├── Dockerfile
 ├── pyproject.toml
 ├── requirements.txt
-└── src
-    ├── common
-    │   └── ai
-    └── plugins
+    └── src
+        ├── common
+        │   ├── ai
+        │   └── db
+        └── plugins
         ├── ai_chat
         ├── coc7
         ├── daily_news

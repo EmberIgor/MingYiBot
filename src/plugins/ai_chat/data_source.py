@@ -54,7 +54,7 @@ class ChatHandler:
             history[:] = [{"role": "system", "content": system_prompt}]
 
         history.append({"role": "user", "content": message})
-        memories = self._memory_items(memory_scope)
+        memories = await self._memory_items(memory_scope)
 
         for retry in range(3):
             try:
@@ -119,26 +119,61 @@ class ChatHandler:
             return []
         return self.memory_store.list_memories(memory_scope)
 
+    async def list_memories_async(self, memory_scope: str) -> list[dict[str, str]]:
+        if not self.memory_enabled():
+            return []
+        return await self._call_memory_store(self.memory_store.list_memories, memory_scope)
+
     def remember(self, memory_scope: str, content: str) -> dict[str, str] | None:
         if not self.memory_enabled():
             return None
         return self.memory_store.add_memory(memory_scope, content)
+
+    async def remember_async(
+        self,
+        memory_scope: str,
+        content: str,
+        *,
+        source: str = "manual",
+        category: str = "general",
+        confidence: float = 1.0,
+    ) -> dict[str, str] | None:
+        if not self.memory_enabled():
+            return None
+        return await self._call_memory_store(
+            self.memory_store.add_memory,
+            memory_scope,
+            content,
+            source=source,
+            category=category,
+            confidence=confidence,
+        )
 
     def forget(self, memory_scope: str, memory_id: str) -> bool:
         if not self.memory_enabled():
             return False
         return self.memory_store.delete_memory(memory_scope, memory_id)
 
+    async def forget_async(self, memory_scope: str, memory_id: str) -> bool:
+        if not self.memory_enabled():
+            return False
+        return await self._call_memory_store(self.memory_store.delete_memory, memory_scope, memory_id)
+
     def clear_memories(self, memory_scope: str) -> int:
         if not self.memory_enabled():
             return 0
         return self.memory_store.clear_memories(memory_scope)
 
-    def _memory_items(self, memory_scope: str | None) -> list[dict[str, str]]:
+    async def clear_memories_async(self, memory_scope: str) -> int:
+        if not self.memory_enabled():
+            return 0
+        return await self._call_memory_store(self.memory_store.clear_memories, memory_scope)
+
+    async def _memory_items(self, memory_scope: str | None) -> list[dict[str, str]]:
         if not memory_scope or not self.memory_enabled():
             return []
         try:
-            return self.memory_store.list_memories(memory_scope)
+            return await self.list_memories_async(memory_scope)
         except MemoryStoreError as exc:
             logger.warning("AI memory lookup skipped: {}", exc)
             return []
@@ -189,7 +224,13 @@ class ChatHandler:
                 stream=False,
             )
             for memory in self._extract_memory_summaries(response):
-                self.memory_store.add_memory(memory_scope, memory)
+                await self.remember_async(
+                    memory_scope,
+                    memory,
+                    source="summary",
+                    category="profile",
+                    confidence=0.7,
+                )
         except Exception as exc:
             logger.exception("AI memory summary failed: {}", exc)
 
@@ -304,6 +345,9 @@ class ChatHandler:
         ]
         lines.extend(f"{index}. {item['content']}" for index, item in enumerate(memories, 1))
         return "\n".join(lines)
+
+    async def _call_memory_store(self, func: Any, *args: Any, **kwargs: Any) -> Any:
+        return await asyncio.to_thread(func, *args, **kwargs)
 
     def _create_client(self) -> Any | None:
         return create_openai_client(self.config.resolved_ai_key, self.config.resolved_ai_baseurl)

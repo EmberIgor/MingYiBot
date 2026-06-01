@@ -7,9 +7,55 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from src.common.db import (
+    MySQLConnectionSettings,
+    MySQLMigration,
+    connect_mysql,
+    run_mysql_migrations,
+)
+
 
 class MemoryStoreError(RuntimeError):
     pass
+
+
+AI_CHAT_MEMORY_MIGRATIONS = (
+    MySQLMigration(
+        version=1,
+        name="create_ai_chat_memories",
+        statements=(
+            """
+            CREATE TABLE IF NOT EXISTS ai_chat_memories (
+              id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+              scope VARCHAR(128) NOT NULL,
+              content VARCHAR(255) NOT NULL,
+              content_hash CHAR(64) NOT NULL,
+              created_at DATETIME NOT NULL,
+              updated_at DATETIME NOT NULL,
+              UNIQUE KEY uniq_scope_content (scope, content_hash),
+              KEY idx_scope_updated (scope, updated_at),
+              KEY idx_scope_id (scope, id)
+            ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+            """,
+        ),
+    ),
+    MySQLMigration(
+        version=2,
+        name="add_ai_chat_memory_metadata",
+        statements=(
+            """
+            ALTER TABLE ai_chat_memories
+              ADD COLUMN source VARCHAR(32) NOT NULL DEFAULT 'manual' AFTER content_hash,
+              ADD COLUMN category VARCHAR(32) NOT NULL DEFAULT 'general' AFTER source,
+              ADD COLUMN confidence DECIMAL(4,3) NOT NULL DEFAULT 1.000 AFTER category,
+              ADD COLUMN last_used_at DATETIME NULL AFTER updated_at,
+              ADD COLUMN is_archived TINYINT(1) NOT NULL DEFAULT 0 AFTER last_used_at,
+              ADD KEY idx_scope_archived_updated (scope, is_archived, updated_at),
+              ADD KEY idx_scope_last_used (scope, last_used_at)
+            """,
+        ),
+    ),
+)
 
 
 class MemoryStore:
@@ -35,7 +81,7 @@ class MemoryStore:
             if isinstance(item, dict) and str(item.get("content", "")).strip()
         ]
 
-    def add_memory(self, scope: str, content: str) -> dict[str, str] | None:
+    def add_memory(self, scope: str, content: str, **_: Any) -> dict[str, str] | None:
         normalized_content = self._normalize_content(content)
         if not normalized_content:
             return None
@@ -159,7 +205,7 @@ class UnavailableMemoryStore:
     def list_memories(self, scope: str) -> list[dict[str, str]]:
         raise MemoryStoreError(self.reason)
 
-    def add_memory(self, scope: str, content: str) -> dict[str, str] | None:
+    def add_memory(self, scope: str, content: str, **_: Any) -> dict[str, str] | None:
         raise MemoryStoreError(self.reason)
 
     def delete_memory(self, scope: str, memory_id: str) -> bool:
@@ -182,12 +228,23 @@ class MySQLMemoryStore:
         max_items: int = 20,
         import_path: str | None = None,
     ) -> None:
-        self.host = host.strip()
-        self.port = int(port)
-        self.database = database.strip()
-        self.user = user.strip()
-        self.password = password
-        self.connect_timeout_seconds = max(1, int(connect_timeout_seconds))
+        try:
+            self.settings = MySQLConnectionSettings(
+                host=host.strip(),
+                port=int(port),
+                database=database.strip(),
+                user=user.strip(),
+                password=password,
+                connect_timeout_seconds=max(1, int(connect_timeout_seconds)),
+            )
+        except (TypeError, ValueError) as exc:
+            raise MemoryStoreError(str(exc)) from exc
+        self.host = self.settings.host
+        self.port = self.settings.port
+        self.database = self.settings.database
+        self.user = self.settings.user
+        self.password = self.settings.password
+        self.connect_timeout_seconds = self.settings.connect_timeout_seconds
         self.max_items = max(max_items, 1)
         self.import_path = Path(import_path) if import_path else None
         self._validate_config()
@@ -202,7 +259,7 @@ class MySQLMemoryStore:
                         """
                         SELECT id, content, created_at, updated_at
                         FROM ai_chat_memories
-                        WHERE scope = %s
+                        WHERE scope = %s AND is_archived = 0
                         ORDER BY updated_at ASC, id ASC
                         """,
                         (scope,),
@@ -213,46 +270,66 @@ class MySQLMemoryStore:
 
         return [self._public_item(row) for row in rows]
 
-    def add_memory(self, scope: str, content: str) -> dict[str, str] | None:
+    def add_memory(
+        self,
+        scope: str,
+        content: str,
+        *,
+        source: str = "manual",
+        category: str = "general",
+        confidence: float = 1.0,
+    ) -> dict[str, str] | None:
         normalized_content = self._normalize_content(content)
         if not normalized_content:
             return None
 
         now = self._now()
         content_hash = self._content_hash(normalized_content)
+        normalized_source = self._normalize_metadata(source, default="manual", max_length=32)
+        normalized_category = self._normalize_metadata(category, default="general", max_length=32)
+        normalized_confidence = self._normalize_confidence(confidence)
         try:
             with self._connect() as connection:
                 with connection.cursor(dictionary=True) as cursor:
                     cursor.execute(
                         """
-                        SELECT id, created_at
-                        FROM ai_chat_memories
-                        WHERE scope = %s AND content_hash = %s
-                        LIMIT 1
+                        INSERT INTO ai_chat_memories
+                            (
+                                scope,
+                                content,
+                                content_hash,
+                                source,
+                                category,
+                                confidence,
+                                created_at,
+                                updated_at,
+                                last_used_at,
+                                is_archived
+                            )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 0)
+                        ON DUPLICATE KEY UPDATE
+                            id = LAST_INSERT_ID(id),
+                            content = VALUES(content),
+                            source = VALUES(source),
+                            category = VALUES(category),
+                            confidence = VALUES(confidence),
+                            updated_at = VALUES(updated_at),
+                            last_used_at = VALUES(last_used_at),
+                            is_archived = 0
                         """,
-                        (scope, content_hash),
+                        (
+                            scope,
+                            normalized_content,
+                            content_hash,
+                            normalized_source,
+                            normalized_category,
+                            normalized_confidence,
+                            now,
+                            now,
+                            now,
+                        ),
                     )
-                    existing = cursor.fetchone()
-                    if existing:
-                        cursor.execute(
-                            """
-                            UPDATE ai_chat_memories
-                            SET content = %s, updated_at = %s
-                            WHERE id = %s
-                            """,
-                            (normalized_content, now, existing["id"]),
-                        )
-                        memory_id = existing["id"]
-                    else:
-                        cursor.execute(
-                            """
-                            INSERT INTO ai_chat_memories
-                                (scope, content, content_hash, created_at, updated_at)
-                            VALUES (%s, %s, %s, %s, %s)
-                            """,
-                            (scope, normalized_content, content_hash, now, now),
-                        )
-                        memory_id = cursor.lastrowid
+                    memory_id = cursor.lastrowid
 
                     self._trim_scope(cursor, scope)
                     connection.commit()
@@ -278,7 +355,7 @@ class MySQLMemoryStore:
             with self._connect() as connection:
                 with connection.cursor() as cursor:
                     cursor.execute(
-                        "DELETE FROM ai_chat_memories WHERE scope = %s AND id = %s",
+                        "DELETE FROM ai_chat_memories WHERE scope = %s AND id = %s AND is_archived = 0",
                         (scope, int(memory_id)),
                     )
                     deleted = cursor.rowcount > 0
@@ -292,7 +369,10 @@ class MySQLMemoryStore:
         try:
             with self._connect() as connection:
                 with connection.cursor() as cursor:
-                    cursor.execute("DELETE FROM ai_chat_memories WHERE scope = %s", (scope,))
+                    cursor.execute(
+                        "DELETE FROM ai_chat_memories WHERE scope = %s AND is_archived = 0",
+                        (scope,),
+                    )
                     deleted = cursor.rowcount
                 connection.commit()
         except Exception as exc:
@@ -304,10 +384,10 @@ class MySQLMemoryStore:
         missing_keys = [
             key
             for key, value in {
-                "MYSQL_HOST": self.host,
-                "MYSQL_DATABASE": self.database,
-                "MYSQL_USER": self.user,
-                "MYSQL_PASSWORD": self.password,
+                "MYSQL_HOST": self.settings.host,
+                "MYSQL_DATABASE": self.settings.database,
+                "MYSQL_USER": self.settings.user,
+                "MYSQL_PASSWORD": self.settings.password,
             }.items()
             if not str(value).strip()
         ]
@@ -315,40 +395,15 @@ class MySQLMemoryStore:
             raise MemoryStoreError(f"MySQL 配置不完整：{', '.join(missing_keys)}")
 
     def _connect(self):
-        try:
-            import mysql.connector
-        except ImportError as exc:
-            raise MemoryStoreError("缺少 mysql-connector-python 依赖。") from exc
-
-        return mysql.connector.connect(
-            host=self.host,
-            port=self.port,
-            user=self.user,
-            password=self.password,
-            database=self.database,
-            connection_timeout=self.connect_timeout_seconds,
-        )
+        return connect_mysql(self.settings)
 
     def _ensure_schema(self) -> None:
         try:
-            with self._connect() as connection:
-                with connection.cursor() as cursor:
-                    cursor.execute(
-                        """
-                        CREATE TABLE IF NOT EXISTS ai_chat_memories (
-                          id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                          scope VARCHAR(128) NOT NULL,
-                          content VARCHAR(255) NOT NULL,
-                          content_hash CHAR(64) NOT NULL,
-                          created_at DATETIME NOT NULL,
-                          updated_at DATETIME NOT NULL,
-                          UNIQUE KEY uniq_scope_content (scope, content_hash),
-                          KEY idx_scope_updated (scope, updated_at),
-                          KEY idx_scope_id (scope, id)
-                        ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
-                        """
-                    )
-                connection.commit()
+            run_mysql_migrations(
+                self.settings,
+                namespace="ai_chat",
+                migrations=AI_CHAT_MEMORY_MIGRATIONS,
+            )
         except Exception as exc:
             raise MemoryStoreError(str(exc)) from exc
 
@@ -402,17 +457,49 @@ class MySQLMemoryStore:
         now = self._now()
         created_at = self._parse_time(item.get("created_at")) or now
         updated_at = self._parse_time(item.get("updated_at")) or created_at
+        last_used_at = self._parse_time(item.get("last_used_at"))
+        source = self._normalize_metadata(str(item.get("source", "import")), default="import", max_length=32)
+        category = self._normalize_metadata(
+            str(item.get("category", "general")),
+            default="general",
+            max_length=32,
+        )
+        confidence = self._normalize_confidence(item.get("confidence", 1.0))
         cursor.execute(
             """
             INSERT INTO ai_chat_memories
-                (scope, content, content_hash, created_at, updated_at)
-            VALUES (%s, %s, %s, %s, %s)
+                (
+                    scope,
+                    content,
+                    content_hash,
+                    source,
+                    category,
+                    confidence,
+                    created_at,
+                    updated_at,
+                    last_used_at,
+                    is_archived
+                )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 0)
             """,
-            (scope, normalized_content, content_hash, created_at, updated_at),
+            (
+                scope,
+                normalized_content,
+                content_hash,
+                source,
+                category,
+                confidence,
+                created_at,
+                updated_at,
+                last_used_at,
+            ),
         )
 
     def _trim_scope(self, cursor, scope: str) -> None:
-        cursor.execute("SELECT COUNT(*) FROM ai_chat_memories WHERE scope = %s", (scope,))
+        cursor.execute(
+            "SELECT COUNT(*) FROM ai_chat_memories WHERE scope = %s AND is_archived = 0",
+            (scope,),
+        )
         row = cursor.fetchone()
         if isinstance(row, dict):
             count = int(next(iter(row.values()), 0))
@@ -429,7 +516,7 @@ class MySQLMemoryStore:
               SELECT id FROM (
                 SELECT id
                 FROM ai_chat_memories
-                WHERE scope = %s
+                WHERE scope = %s AND is_archived = 0
                 ORDER BY updated_at ASC, id ASC
                 LIMIT %s
               ) AS old_memories
@@ -441,6 +528,18 @@ class MySQLMemoryStore:
     def _normalize_content(self, content: str) -> str:
         content = re.sub(r"\s+", " ", content.strip())
         return content[:160].strip()
+
+    def _normalize_metadata(self, value: str, *, default: str, max_length: int) -> str:
+        normalized = re.sub(r"\s+", "_", value.strip().lower())
+        normalized = re.sub(r"[^a-z0-9_-]+", "", normalized)
+        return (normalized or default)[:max_length]
+
+    def _normalize_confidence(self, value: Any) -> float:
+        try:
+            confidence = float(value)
+        except (TypeError, ValueError):
+            return 1.0
+        return min(max(confidence, 0.0), 1.0)
 
     def _content_hash(self, content: str) -> str:
         return hashlib.sha256(content.encode("utf-8")).hexdigest()

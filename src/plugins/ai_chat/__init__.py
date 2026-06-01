@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from nonebot import get_plugin_config, logger, on_message, on_regex
+from nonebot import get_driver, get_plugin_config, logger, on_message, on_regex
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageEvent, MessageSegment
 from nonebot.adapters.onebot.v11.event import Reply
 from nonebot.plugin import PluginMetadata
@@ -22,6 +22,7 @@ __plugin_meta__ = PluginMetadata(
 )
 
 config = get_plugin_config(Config)
+driver = get_driver()
 runtime_settings = get_runtime_settings_store()
 role_store = RoleStore(config.aichat_roles_path, config.aichat_default_role)
 chat_handler = ChatHandler(config, role_store)
@@ -106,6 +107,11 @@ def _group_id(event: MessageEvent) -> int | None:
     return event.group_id if isinstance(event, GroupMessageEvent) else None
 
 
+def _is_superuser(event: MessageEvent) -> bool:
+    user_id = str(event.user_id).strip()
+    return user_id in {str(item).strip() for item in driver.config.superusers}
+
+
 async def _default_role(event: MessageEvent) -> str:
     role_name = await runtime_settings.get_str_async(
         "ai_chat",
@@ -187,6 +193,8 @@ async def _handle_role_command(event: MessageEvent, command: str, matcher) -> No
         await matcher.finish(_format_memory_list(memories))
 
     if command in {"整理记忆", "整理长期记忆", "organize memory", "tidy memory", "compact memory"}:
+        if not _is_superuser(event):
+            await matcher.finish("只有管理员可以整理长期记忆。")
         if not chat_handler.memory_enabled():
             await matcher.finish("AI 长期记忆未启用。")
         try:

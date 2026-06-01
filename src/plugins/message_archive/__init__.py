@@ -5,7 +5,7 @@ import json
 import re
 import time
 from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from nonebot import get_driver, get_plugin_config, logger, on_message, on_regex
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageEvent, MessageSegment
@@ -25,12 +25,15 @@ from .store import (
 __plugin_meta__ = PluginMetadata(
     name="message_archive",
     description="按群归档消息记录，并提供基础群统计和热词查询。",
-    usage=".群记录 状态\n.群记录 开启\n.群统计 今日\n.群热词 7天",
+    usage=".群记录 状态\n.群记录 开启\n.群统计 今日\n.群热词 7天\n私聊管理员：.群统计 群号 今日",
     config=Config,
 )
 
 
-LOCAL_TZ = ZoneInfo("Asia/Shanghai")
+try:
+    LOCAL_TZ = ZoneInfo("Asia/Shanghai")
+except ZoneInfoNotFoundError:
+    LOCAL_TZ = timezone(timedelta(hours=8))
 MAX_TEXT_LENGTH = 4000
 MAX_JSON_LENGTH = 60000
 
@@ -42,6 +45,7 @@ archive_listener = on_message(priority=1, block=False)
 archive_control = on_regex(r"^[.。](?:群记录|消息记录)(?:\s+|$).*$", priority=12, block=True)
 group_stats = on_regex(r"^[.。]群统计(?:\s+|$).*$", priority=12, block=True)
 group_hotwords = on_regex(r"^[.。]群热词(?:\s+|$).*$", priority=12, block=True)
+PRIVATE_GROUP_QUERY_PATTERN = re.compile(r"^(?:群(?:号|聊)?[:：]?\s*)?(\d{5,20})(?:\s+(.+))?$")
 
 _last_error_logged_at = 0.0
 _last_pruned_dates: dict[str, str] = {}
@@ -125,24 +129,64 @@ async def handle_archive_control(event: MessageEvent) -> None:
 
 @group_stats.handle()
 async def handle_group_stats(event: MessageEvent) -> None:
-    if not isinstance(event, GroupMessageEvent):
-        await group_stats.finish(MessageSegment.text("请在群聊中查看群统计。"))
-    if not await _archive_enabled(event.group_id):
-        await group_stats.finish(MessageSegment.text("本群消息记录未开启，请管理员先发送 .群记录 开启。"))
-
     command = _parse_prefixed_command(event.get_plaintext(), ("群统计",))
+    if isinstance(event, GroupMessageEvent):
+        response = await _format_group_stats_response(event.group_id, command, group_label="本群")
+    else:
+        response = await _format_private_group_stats_response(event, command)
+    await group_stats.finish(MessageSegment.text(response))
+
+
+@group_hotwords.handle()
+async def handle_group_hotwords(event: MessageEvent) -> None:
+    command = _parse_prefixed_command(event.get_plaintext(), ("群热词",))
+    if isinstance(event, GroupMessageEvent):
+        response = await _format_group_hotwords_response(event.group_id, command, group_label="本群")
+    else:
+        response = await _format_private_group_hotwords_response(event, command)
+    await group_hotwords.finish(MessageSegment.text(response))
+
+
+async def _format_private_group_stats_response(event: MessageEvent, command: str) -> str:
+    if not _is_superuser(event):
+        return "只有管理员可以通过私聊查询指定群统计。"
+
+    query = _parse_private_group_query(command)
+    if query is None:
+        return "用法：.群统计 群号 时间范围，例如 .群统计 123456 今日"
+
+    group_id, period_command = query
+    return await _format_group_stats_response(group_id, period_command, group_label=f"群 {group_id} ")
+
+
+async def _format_private_group_hotwords_response(event: MessageEvent, command: str) -> str:
+    if not _is_superuser(event):
+        return "只有管理员可以通过私聊查询指定群热词。"
+
+    query = _parse_private_group_query(command)
+    if query is None:
+        return "用法：.群热词 群号 时间范围，例如 .群热词 123456 7天"
+
+    group_id, period_command = query
+    return await _format_group_hotwords_response(group_id, period_command, group_label=f"群 {group_id} ")
+
+
+async def _format_group_stats_response(group_id: int, command: str, *, group_label: str) -> str:
+    if not await _archive_enabled(group_id):
+        return f"{group_label}消息记录未开启，请管理员先发送 .群记录 开启。"
+
     since, period_label = _parse_period(command, default_days=1)
     try:
-        stats = await archive_store.summarize_group_async(event.group_id, since)
-        top_users = await archive_store.top_users_async(event.group_id, since, limit=5)
+        stats = await archive_store.summarize_group_async(group_id, since)
+        top_users = await archive_store.top_users_async(group_id, since, limit=5)
     except MessageArchiveError as exc:
-        await group_stats.finish(MessageSegment.text(f"群统计查询失败：{exc}"))
+        return f"群统计查询失败：{exc}"
 
     if stats.message_count == 0:
-        await group_stats.finish(MessageSegment.text(f"本群{period_label}还没有消息记录。"))
+        return f"{group_label}{period_label}还没有消息记录。"
 
     lines = [
-        f"本群{period_label}统计：",
+        f"{group_label}{period_label}统计：",
         f"消息：{stats.message_count} 条",
         f"活跃用户：{stats.active_user_count} 人",
     ]
@@ -154,34 +198,30 @@ async def handle_group_stats(event: MessageEvent) -> None:
             f"{index}. {_format_user_count(item.display_name, item.user_id)}：{item.message_count} 条"
             for index, item in enumerate(top_users, 1)
         )
-    await group_stats.finish(MessageSegment.text("\n".join(lines)))
+    return "\n".join(lines)
 
 
-@group_hotwords.handle()
-async def handle_group_hotwords(event: MessageEvent) -> None:
-    if not isinstance(event, GroupMessageEvent):
-        await group_hotwords.finish(MessageSegment.text("请在群聊中查看群热词。"))
-    if not await _archive_enabled(event.group_id):
-        await group_hotwords.finish(MessageSegment.text("本群消息记录未开启，请管理员先发送 .群记录 开启。"))
+async def _format_group_hotwords_response(group_id: int, command: str, *, group_label: str) -> str:
+    if not await _archive_enabled(group_id):
+        return f"{group_label}消息记录未开启，请管理员先发送 .群记录 开启。"
 
-    command = _parse_prefixed_command(event.get_plaintext(), ("群热词",))
     since, period_label = _parse_period(command, default_days=7)
     try:
         texts = await archive_store.recent_texts_async(
-            event.group_id,
+            group_id,
             since,
             limit=config.message_archive_query_limit,
         )
     except MessageArchiveError as exc:
-        await group_hotwords.finish(MessageSegment.text(f"群热词查询失败：{exc}"))
+        return f"群热词查询失败：{exc}"
 
     keywords = extract_keywords(texts, limit=config.message_archive_hotword_limit)
     if not keywords:
-        await group_hotwords.finish(MessageSegment.text(f"本群{period_label}还没有可统计的文本热词。"))
+        return f"{group_label}{period_label}还没有可统计的文本热词。"
 
-    lines = [f"本群{period_label}热词："]
+    lines = [f"{group_label}{period_label}热词："]
     lines.extend(f"{index}. {item.keyword}：{item.count}" for index, item in enumerate(keywords, 1))
-    await group_hotwords.finish(MessageSegment.text("\n".join(lines)))
+    return "\n".join(lines)
 
 
 async def _record_group_message(record: ArchivedGroupMessage, retention_days: int) -> None:
@@ -267,6 +307,13 @@ def _serialize_message_segments(message) -> tuple[str, str]:  # type: ignore[no-
 def _parse_prefixed_command(message: str, prefixes: tuple[str, ...]) -> str:
     prefix_pattern = "|".join(re.escape(prefix) for prefix in prefixes)
     return re.sub(rf"^[.。](?:{prefix_pattern})(?:\s+|$)", "", message.strip(), count=1).strip()
+
+
+def _parse_private_group_query(command: str) -> tuple[int, str] | None:
+    match = PRIVATE_GROUP_QUERY_PATTERN.fullmatch(command.strip())
+    if not match:
+        return None
+    return int(match.group(1)), (match.group(2) or "").strip()
 
 
 def _parse_retention_days(command: str) -> int | None:

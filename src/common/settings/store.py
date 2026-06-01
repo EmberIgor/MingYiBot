@@ -68,6 +68,15 @@ SETTING_DEFINITIONS: dict[tuple[str, str], SettingDefinition] = {
         min_value=0,
         max_value=20,
     ),
+    ("message_archive", "enabled"): SettingDefinition("message_archive", "enabled", "bool", "群消息记录"),
+    ("message_archive", "retention_days"): SettingDefinition(
+        "message_archive",
+        "retention_days",
+        "int",
+        "群消息记录保留天数",
+        min_value=1,
+        max_value=3650,
+    ),
 }
 
 _store: RuntimeSettingsStore | None = None

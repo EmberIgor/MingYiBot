@@ -10,6 +10,7 @@ from src.common.settings import SettingsStoreError, get_runtime_settings_store
 from src.plugins.ai_chat.config import Config as AIChatConfig
 from src.plugins.ai_chat.role_store import RoleStore
 from src.plugins.daily_news.config import Config as DailyNewsConfig
+from src.plugins.message_archive.config import Config as MessageArchiveConfig
 from src.plugins.repeater.config import Config as RepeaterConfig
 from src.plugins.sunset.config import Config as SunsetConfig
 
@@ -24,6 +25,7 @@ __plugin_meta__ = PluginMetadata(
         ".配置 AI联网 开|关\n"
         ".配置 默认角色 jarvis\n"
         ".配置 复读阈值 3\n"
+        ".配置 群记录 开|关\n"
         ".配置 重置 火烧云城市"
     ),
 )
@@ -35,6 +37,7 @@ daily_news_config = get_plugin_config(DailyNewsConfig)
 sunset_config = get_plugin_config(SunsetConfig)
 ai_chat_config = get_plugin_config(AIChatConfig)
 repeater_config = get_plugin_config(RepeaterConfig)
+message_archive_config = get_plugin_config(MessageArchiveConfig)
 runtime_config = on_regex(r"^[.。]配置(?:\s+|$)(.*)$", priority=8, block=True)
 
 RESET_ALIASES: dict[str, tuple[str, str]] = {
@@ -44,6 +47,12 @@ RESET_ALIASES: dict[str, tuple[str, str]] = {
     "AI联网": ("ai_chat", "web_search"),
     "默认角色": ("ai_chat", "default_role"),
     "复读阈值": ("repeater", "threshold"),
+    "群记录": ("message_archive", "enabled"),
+    "消息记录": ("message_archive", "enabled"),
+    "群记录保留": ("message_archive", "retention_days"),
+    "群记录保留天数": ("message_archive", "retention_days"),
+    "消息记录保留": ("message_archive", "retention_days"),
+    "消息记录保留天数": ("message_archive", "retention_days"),
 }
 GLOBAL_SETTINGS = set(RESET_ALIASES.values())
 GROUP_SETTINGS = set(RESET_ALIASES.values())
@@ -207,6 +216,44 @@ async def _apply_scope_setting(
             return f"已关闭{scope_label}复读。"
         return f"已将{scope_label}复读阈值设为：{threshold}"
 
+    if command in {"群记录 开", "群记录 开启", "消息记录 开", "消息记录 开启"}:
+        _require_allowed(("message_archive", "enabled"), allowed_settings, scope_label)
+        await runtime_settings.set_value_async(
+            scope_type,
+            scope_id,
+            "message_archive",
+            "enabled",
+            True,
+            updated_by=updated_by,
+        )
+        return f"已开启{scope_label}群消息记录。"
+
+    if command in {"群记录 关", "群记录 关闭", "消息记录 关", "消息记录 关闭"}:
+        _require_allowed(("message_archive", "enabled"), allowed_settings, scope_label)
+        await runtime_settings.set_value_async(
+            scope_type,
+            scope_id,
+            "message_archive",
+            "enabled",
+            False,
+            updated_by=updated_by,
+        )
+        return f"已关闭{scope_label}群消息记录。"
+
+    match = re.fullmatch(r"(?:群记录|消息记录)\s*(?:保留|保留天数)\s+(\d+)", command)
+    if match:
+        _require_allowed(("message_archive", "retention_days"), allowed_settings, scope_label)
+        retention_days = int(match.group(1))
+        await runtime_settings.set_value_async(
+            scope_type,
+            scope_id,
+            "message_archive",
+            "retention_days",
+            retention_days,
+            updated_by=updated_by,
+        )
+        return f"已将{scope_label}群消息记录保留天数设为：{retention_days}"
+
     match = re.fullmatch(r"重置\s+(.+)", command)
     if match:
         target = match.group(1).strip()
@@ -253,6 +300,18 @@ async def _format_group_settings(group_id: int) -> str:
             repeater_config.repeater_threshold,
             group_id=group_id,
         )
+        message_archive_enabled = await runtime_settings.get_bool_async(
+            "message_archive",
+            "enabled",
+            message_archive_config.message_archive_enabled,
+            group_id=group_id,
+        )
+        message_archive_retention_days = await runtime_settings.get_int_async(
+            "message_archive",
+            "retention_days",
+            message_archive_config.message_archive_retention_days,
+            group_id=group_id,
+        )
     except SettingsStoreError as exc:
         raise SettingsStoreError(str(exc)) from exc
 
@@ -263,6 +322,14 @@ async def _format_group_settings(group_id: int) -> str:
     lines.append(f"默认角色：{ai_default_role}{_source(stored_values, 'ai_chat', 'default_role')}")
     repeater_text = "关闭" if repeater_threshold < 2 else str(repeater_threshold)
     lines.append(f"复读阈值：{repeater_text}{_source(stored_values, 'repeater', 'threshold')}")
+    lines.append(
+        f"群消息记录：{_on_off(message_archive_enabled)}"
+        f"{_source(stored_values, 'message_archive', 'enabled')}"
+    )
+    lines.append(
+        f"群消息记录保留：{message_archive_retention_days} 天"
+        f"{_source(stored_values, 'message_archive', 'retention_days')}"
+    )
     return "\n".join(lines)
 
 
@@ -300,6 +367,16 @@ async def _format_global_settings() -> str:
         "threshold",
         repeater_config.repeater_threshold,
     )
+    message_archive_enabled = await runtime_settings.get_bool_async(
+        "message_archive",
+        "enabled",
+        message_archive_config.message_archive_enabled,
+    )
+    message_archive_retention_days = await runtime_settings.get_int_async(
+        "message_archive",
+        "retention_days",
+        message_archive_config.message_archive_retention_days,
+    )
 
     lines = ["全局运行时配置："]
     lines.append(f"每日新闻：{_on_off(daily_news_enabled)}{_source(stored_values, 'daily_news', 'enabled', '全局配置')}")
@@ -308,6 +385,14 @@ async def _format_global_settings() -> str:
     lines.append(f"默认角色：{ai_default_role}{_source(stored_values, 'ai_chat', 'default_role', '全局配置')}")
     repeater_text = "关闭" if repeater_threshold < 2 else str(repeater_threshold)
     lines.append(f"复读阈值：{repeater_text}{_source(stored_values, 'repeater', 'threshold', '全局配置')}")
+    lines.append(
+        f"群消息记录：{_on_off(message_archive_enabled)}"
+        f"{_source(stored_values, 'message_archive', 'enabled', '全局配置')}"
+    )
+    lines.append(
+        f"群消息记录保留：{message_archive_retention_days} 天"
+        f"{_source(stored_values, 'message_archive', 'retention_days', '全局配置')}"
+    )
     return "\n".join(lines)
 
 
@@ -352,6 +437,8 @@ def _help_text(*, is_group: bool) -> str:
             ".配置 AI联网 开/关\n"
             ".配置 默认角色 jarvis\n"
             ".配置 复读阈值 3（小于 2 为关闭）\n"
+            ".配置 群记录 开/关\n"
+            ".配置 群记录保留 90\n"
             ".配置 重置 火烧云城市"
         )
 
@@ -363,5 +450,7 @@ def _help_text(*, is_group: bool) -> str:
         ".配置 AI联网 开/关\n"
         ".配置 默认角色 jarvis\n"
         ".配置 复读阈值 3（小于 2 为关闭）\n"
+        ".配置 群记录 开/关\n"
+        ".配置 群记录保留 90\n"
         ".配置 重置 火烧云城市"
     )

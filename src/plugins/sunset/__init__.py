@@ -3,8 +3,9 @@ import re
 from datetime import datetime, timedelta
 
 from nonebot import get_bots, get_driver, get_plugin_config, logger, on_regex
-from nonebot.adapters.onebot.v11 import Bot, MessageEvent, MessageSegment
+from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent, MessageSegment
 from nonebot.plugin import PluginMetadata
+from src.common.settings import get_runtime_settings_store
 
 from .config import Config
 from .data_source import (
@@ -24,13 +25,22 @@ __plugin_meta__ = PluginMetadata(
 
 
 config = get_plugin_config(Config)
+runtime_settings = get_runtime_settings_store()
 driver = get_driver()
 sun_command = on_regex(r"^(?:[.。])?(?:sun|火烧云)(?:\s+|$)(.*)$", priority=20, block=True)
 
 
 @sun_command.handle()
 async def handle_sun(event: MessageEvent) -> None:
-    location = _extract_location(event.get_plaintext()) or config.sunset_default_city
+    location = _extract_location(event.get_plaintext())
+    if not location:
+        group_id = event.group_id if isinstance(event, GroupMessageEvent) else None
+        location = await runtime_settings.get_str_async(
+            "sunset",
+            "default_city",
+            config.sunset_default_city,
+            group_id=group_id,
+        )
 
     try:
         report = await build_sunset_report(

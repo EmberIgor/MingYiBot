@@ -7,6 +7,7 @@ from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, Message
 from nonebot.adapters.onebot.v11.event import Reply
 from nonebot.plugin import PluginMetadata
 from src.common.rules import directed_to_bot
+from src.common.settings import get_runtime_settings_store
 
 from .config import Config
 from .data_source import ChatHandler
@@ -21,6 +22,7 @@ __plugin_meta__ = PluginMetadata(
 )
 
 config = get_plugin_config(Config)
+runtime_settings = get_runtime_settings_store()
 role_store = RoleStore(config.aichat_roles_path, config.aichat_default_role)
 chat_handler = ChatHandler(config, role_store)
 selected_roles: dict[str, str] = {}
@@ -84,20 +86,47 @@ def _conversation_scope(event: MessageEvent) -> str:
     return f"private:user:{event.user_id}"
 
 
-def _current_role(scope: str) -> str:
-    role_name = selected_roles.get(scope, config.aichat_default_role)
+def _current_role(scope: str, default_role: str) -> str:
+    role_name = selected_roles.get(scope, default_role)
+    if role_store.has_role(role_name):
+        return role_name
+    return default_role if role_store.has_role(default_role) else config.aichat_default_role
+
+
+def _session_id(event: MessageEvent, default_role: str) -> str:
+    scope = _conversation_scope(event)
+    return f"{scope}:role:{_current_role(scope, default_role)}"
+
+
+def _memory_scope(event: MessageEvent) -> str:
+    return f"user:{event.user_id}"
+
+
+def _group_id(event: MessageEvent) -> int | None:
+    return event.group_id if isinstance(event, GroupMessageEvent) else None
+
+
+async def _default_role(event: MessageEvent) -> str:
+    role_name = await runtime_settings.get_str_async(
+        "ai_chat",
+        "default_role",
+        config.aichat_default_role,
+        group_id=_group_id(event),
+        user_id=event.user_id,
+    )
     if role_store.has_role(role_name):
         return role_name
     return config.aichat_default_role
 
 
-def _session_id(event: MessageEvent) -> str:
-    scope = _conversation_scope(event)
-    return f"{scope}:role:{_current_role(scope)}"
-
-
-def _memory_scope(event: MessageEvent) -> str:
-    return f"user:{event.user_id}"
+async def _web_search_enabled(event: MessageEvent) -> bool:
+    return await runtime_settings.get_bool_async(
+        "ai_chat",
+        "web_search",
+        config.aichat_web_search,
+        group_id=_group_id(event),
+        user_id=event.user_id,
+    )
 
 
 @role_command.handle()
@@ -141,9 +170,10 @@ async def _handle_role_command(event: MessageEvent, command: str, matcher) -> No
 
     scope = _conversation_scope(event)
     memory_scope = _memory_scope(event)
+    default_role = await _default_role(event)
 
     if not command or command in {"列表", "list"}:
-        current = _current_role(scope)
+        current = _current_role(scope, default_role)
         roles = "、".join(role_store.list_roles())
         await matcher.finish(f"当前角色：{current}\n可用角色：{roles}")
 
@@ -203,28 +233,31 @@ async def _handle_role_command(event: MessageEvent, command: str, matcher) -> No
         await matcher.finish("AI 角色预设已重载，当前会话角色已恢复为默认角色。")
 
     if command in {"重置", "reset", "清空"}:
-        chat_handler.clear_history(_session_id(event))
+        chat_handler.clear_history(_session_id(event, default_role))
         await matcher.finish("当前 AI 聊天上下文已清空。")
 
     if not role_store.has_role(command):
         await matcher.finish(f"没有找到角色：{command}\n可用角色：{'、'.join(role_store.list_roles())}")
 
     selected_roles[scope] = command
-    chat_handler.clear_history(_session_id(event))
+    chat_handler.clear_history(_session_id(event, default_role))
     await matcher.finish(f"已切换 AI 聊天角色：{command}")
 
 
 @ai_chat.handle()
 async def handle_ai_chat(bot: Bot, event: MessageEvent) -> None:
+    default_role = await _default_role(event)
+    role_name = _current_role(_conversation_scope(event), default_role)
     prompt, image_urls = _extract_chat_content(event.get_message(), bot)
     reply_context, reply_image_urls = _extract_reply_context(event.reply, bot)
     prompt = prompt or "你好"
     prompt = _build_prompt_with_reply(prompt, reply_context)
     response = await chat_handler.ask(
         prompt,
-        _session_id(event),
-        _current_role(_conversation_scope(event)),
+        _session_id(event, default_role),
+        role_name,
         [*reply_image_urls, *image_urls],
         _memory_scope(event),
+        web_search=await _web_search_enabled(event),
     )
     await ai_chat.finish(MessageSegment.text(response), at_sender=True)

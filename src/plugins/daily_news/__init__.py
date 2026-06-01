@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 from nonebot import get_bots, get_driver, get_plugin_config, logger, on_regex
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent, MessageSegment
 from nonebot.plugin import PluginMetadata
+from src.common.settings import get_runtime_settings_store
 
 from .config import Config
 from .data_source import DailyNewsError, build_daily_news_image_url, fetch_daily_news_date
@@ -18,6 +19,7 @@ __plugin_meta__ = PluginMetadata(
 
 
 config = get_plugin_config(Config)
+runtime_settings = get_runtime_settings_store()
 driver = get_driver()
 today_news = on_regex(r"^(?:[.。])?今日新闻$", priority=20, block=True)
 
@@ -55,11 +57,20 @@ def _latest_run_at(now: datetime) -> datetime:
     return latest
 
 
-def _group_allowed(group_id: int) -> bool:
+def _group_allowed_by_env(group_id: int) -> bool:
     group_ids = set(config.dailynews_group_ids)
     if config.dailynews_group_mode == "whitelist":
         return group_id in group_ids
     return group_id not in group_ids
+
+
+async def _group_enabled(group_id: int) -> bool:
+    return await runtime_settings.get_bool_async(
+        "daily_news",
+        "enabled",
+        _group_allowed_by_env(group_id),
+        group_id=group_id,
+    )
 
 
 async def _daily_news_is_today() -> bool:
@@ -115,7 +126,7 @@ async def _send_to_bot_groups(bot: Bot, message: MessageSegment) -> None:
 
     for group in groups:
         group_id = int(group["group_id"])
-        if not _group_allowed(group_id):
+        if not await _group_enabled(group_id):
             continue
 
         try:
@@ -187,7 +198,7 @@ async def handle_today_news(event: MessageEvent) -> None:
         logger.warning("Daily news command message build failed: {}", exc)
         await today_news.finish(str(exc))
 
-    if isinstance(event, GroupMessageEvent) and not _group_allowed(event.group_id):
-        await today_news.finish("当前群不在每日新闻发送范围内。")
+    if isinstance(event, GroupMessageEvent) and not await _group_enabled(event.group_id):
+        await today_news.finish("当前群未开启每日新闻。")
 
     await today_news.finish(message)

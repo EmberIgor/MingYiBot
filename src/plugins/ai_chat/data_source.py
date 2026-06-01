@@ -38,6 +38,7 @@ class ChatHandler:
         role_name: str,
         image_urls: list[str] | None = None,
         memory_scope: str | None = None,
+        web_search: bool | None = None,
     ) -> str:
         self.cleanup_expired()
 
@@ -58,7 +59,13 @@ class ChatHandler:
 
         for retry in range(3):
             try:
-                response = await self._request_ai(system_prompt, history, image_urls or [], memories)
+                response = await self._request_ai(
+                    system_prompt,
+                    history,
+                    image_urls or [],
+                    memories,
+                    web_search=web_search,
+                )
                 break
             except Exception as exc:
                 if retry == 2 or not is_retryable_error(exc):
@@ -302,6 +309,7 @@ class ChatHandler:
         history: list[dict[str, str]],
         image_urls: list[str],
         memories: list[dict[str, str]] | None = None,
+        web_search: bool | None = None,
     ) -> Any:
         return await request_response(
             self.client,
@@ -309,7 +317,7 @@ class ChatHandler:
             instructions=self._build_instructions(system_prompt, memories),
             messages=history,
             image_urls=image_urls,
-            web_search=self.config.aichat_web_search,
+            web_search=self.config.aichat_web_search if web_search is None else web_search,
             stream=False,
         )
 

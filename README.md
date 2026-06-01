@@ -172,6 +172,7 @@ docker compose -f docker-compose.prod.yml up -d
 - 火烧云查询：查询指定城市今日、明日的日出/日落火烧云分析；支持定时私聊提醒。
 - 每日新闻：手动获取 60s 每日新闻图片；支持每天定时向群推送。
 - MySQL 自检：管理员可以测试 MySQL 连接，方便后续接入数据库功能前先验证群晖配置。
+- 运行时配置：管理员可以在群聊中热修改每日新闻、火烧云默认城市、AI 联网、默认角色和复读阈值。
 - 部署更新：管理员可以在 QQ 中触发 Watchtower 立即检查新镜像，也可以重启机器人重新读取 `.env`。
 
 ## 用户可用命令
@@ -185,6 +186,9 @@ docker compose -f docker-compose.prod.yml up -d
 | `.help` | 查看用户可用指令摘要。也可以写作 `.帮助`、`.菜单`，并支持中文句号。 | `.help` |
 | `.ping` | 检查机器人是否在线，回复 `pong`。也可以写作 `.状态`。 | `.ping` |
 | `.数据库测试` | 管理员测试 MySQL 是否可连接。也可以写作 `.mysql测试`、`.db测试`，并支持中文句号。 | `.数据库测试` |
+| `.配置 查看` | 管理员查看当前群的运行时配置。 | `.配置 查看` |
+| `.配置 配置项 值` | 管理员热修改当前群配置；支持每日新闻、火烧云城市、AI 联网、默认角色、复读阈值。 | `.配置 火烧云城市 上海` |
+| `.配置 重置 配置项` | 删除当前群的运行时覆盖配置，恢复 `.env` 默认值。 | `.配置 重置 火烧云城市` |
 | `.更新` | 管理员触发 Watchtower 立即检查并更新镜像。也可以写作 `.部署更新`。 | `.更新` |
 | `.重启` | 管理员重启机器人进程并重新读取 `.env`。 | `.重启` |
 
@@ -264,7 +268,7 @@ docker compose -f docker-compose.prod.yml up -d
 
 ### MySQL 测试配置
 
-这些配置用于管理员命令 `.数据库测试` 和 AI 长期记忆的 MySQL 后端，用于验证并连接机器人使用的 MySQL 数据库。
+这些配置用于管理员命令 `.数据库测试`、AI 长期记忆和运行时配置中心，用于验证并连接机器人使用的 MySQL 数据库。
 
 | 配置项 | 默认值 | 说明 |
 | --- | --- | --- |
@@ -313,6 +317,32 @@ MYSQL_PASSWORD=你的MySQL应用密码
 
 默认 MySQL 后端会在启动时通过轻量 migration 创建或升级 `ai_chat_memories` 表，并按内容去重导入 `AICHAT_MEMORY_PATH` 指向的旧 JSON 记忆文件。记忆表会保存来源、分类、置信度、最近使用时间和归档标记，方便后续治理；重复内容写入使用数据库原子去重更新。若 MySQL 配置缺失或连接失败，AI 聊天仍可使用，但长期记忆命令会提示数据库暂不可用；如需临时回滚，可设置 `AICHAT_MEMORY_BACKEND=json` 并重启。
 
+### 运行时配置中心
+
+`.env` 仍然负责数据库连接、API Key、token、容器端口等敏感或部署级配置。运行时配置只保存可热修改的非敏感群配置，并写入 MySQL 的 `runtime_settings` 表；数据库不可用时，各插件会回退到 `.env` 默认值，只有 `.配置` 命令会提示不可用。
+
+读取优先级为：
+
+```text
+代码默认值 < .env < 数据库 global 覆盖 < 数据库 group/user 覆盖
+```
+
+当前管理员命令只支持在群聊里修改当前群配置：
+
+| 命令 | 说明 | 示例 |
+| --- | --- | --- |
+| `.配置 查看` | 查看当前群运行时配置。 | `.配置 查看` |
+| `.配置 每日新闻 开/关` | 覆盖当前群每日新闻开关。 | `.配置 每日新闻 关` |
+| `.配置 火烧云城市 城市` | 覆盖当前群火烧云默认城市；只影响不填地点的手动查询。 | `.配置 火烧云城市 上海` |
+| `.配置 AI联网 开/关` | 覆盖当前群 AI 聊天是否启用联网工具。 | `.配置 AI联网 开` |
+| `.配置 默认角色 角色名` | 覆盖当前群 AI 默认角色；角色名必须存在于角色配置。 | `.配置 默认角色 jarvis` |
+| `.配置 复读阈值 数字` | 覆盖当前群复读阈值；小于 2 表示关闭复读。 | `.配置 复读阈值 3` |
+| `.配置 重置 配置项` | 删除当前群某项覆盖配置，恢复 `.env` 默认。 | `.配置 重置 默认角色` |
+
+| 配置项 | 默认值 | 说明 |
+| --- | --- | --- |
+| `RUNTIME_SETTINGS_CACHE_SECONDS` | `30` | 运行时配置读取缓存时间，减少高频消息触发数据库查询。 |
+
 ### 每日新闻配置
 
 | 配置项 | 默认值 | 说明 |
@@ -327,6 +357,8 @@ MYSQL_PASSWORD=你的MySQL应用密码
 | `DAILYNEWS_GROUP_MODE` | `blacklist` | 群范围模式，可选 `blacklist` 或 `whitelist`。 |
 | `DAILYNEWS_GROUP_IDS` | 空列表 | 黑名单或白名单群号列表，取决于 `DAILYNEWS_GROUP_MODE`。 |
 
+每日新闻的群聊运行时开关会覆盖 `DAILYNEWS_GROUP_MODE`/`DAILYNEWS_GROUP_IDS` 的默认结果；`DAILYNEWS_ENABLED=false` 仍会关闭定时推送调度。
+
 ### 火烧云配置
 
 | 配置项 | 默认值 | 说明 |
@@ -340,6 +372,12 @@ MYSQL_PASSWORD=你的MySQL应用密码
 | `SUNSET_NOTIFY_THRESHOLD` | `中烧` | 达到该等级或更高时提醒。 |
 | `SUNSET_OWNER_IDS` | 空列表 | 私聊提醒接收人 QQ 号；未配置时使用 NoneBot `SUPERUSERS`。 |
 
+### 复读配置
+
+| 配置项 | 默认值 | 说明 |
+| --- | --- | --- |
+| `REPEATER_THRESHOLD` | `2` | 群聊连续出现同一消息达到该次数时复读；小于 2 表示默认关闭复读。 |
+
 ## 目录结构
 
 ```text
@@ -349,11 +387,12 @@ MYSQL_PASSWORD=你的MySQL应用密码
 ├── Dockerfile
 ├── pyproject.toml
 ├── requirements.txt
-    └── src
-        ├── common
-        │   ├── ai
-        │   └── db
-        └── plugins
+└── src
+    ├── common
+    │   ├── ai
+    │   ├── db
+    │   └── settings
+    └── plugins
         ├── ai_chat
         ├── coc7
         ├── daily_news
@@ -362,6 +401,7 @@ MYSQL_PASSWORD=你的MySQL应用密码
         ├── mysql_test
         ├── ping
         ├── repeater
+        ├── runtime_config
         ├── startup_notify
         └── sunset
 ```

@@ -26,6 +26,23 @@ class StubRoleStore:
         return "test prompt"
 
 
+class FakeAIResponse:
+    output_text = "ok"
+
+
+class RecordingChatHandler(ChatHandler):
+    def __init__(self, config: Config, role_store: StubRoleStore) -> None:
+        self.recorded_web_search: bool | None = None
+        super().__init__(config, role_store)
+
+    def _create_client(self) -> object:
+        return object()
+
+    async def _request_ai(self, *args: Any, web_search: bool | None = None, **kwargs: Any) -> Any:
+        self.recorded_web_search = web_search
+        return FakeAIResponse()
+
+
 class AIMemoryStoreTest(unittest.TestCase):
     def test_default_mysql_backend_is_unavailable_without_config(self) -> None:
         handler = ChatHandler(Config(), StubRoleStore())
@@ -52,6 +69,20 @@ class AIMemoryStoreTest(unittest.TestCase):
                 [item["content"] for item in handler.list_memories("user:1")],
                 ["第二条记忆", "第三条记忆"],
             )
+
+    def test_ask_accepts_runtime_web_search_override(self) -> None:
+        config = Config(
+            aichat_memory_enabled=False,
+            aichat_key="key",
+            aichat_model="model",
+            aichat_web_search=False,
+        )
+        handler = RecordingChatHandler(config, StubRoleStore())
+
+        response = asyncio.run(handler.ask("hello", "session:1", "default", web_search=True))
+
+        self.assertEqual(response, "ok")
+        self.assertTrue(handler.recorded_web_search)
 
     def test_mysql_content_normalization_matches_json_store(self) -> None:
         store = MySQLMemoryStore.__new__(MySQLMemoryStore)

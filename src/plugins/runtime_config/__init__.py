@@ -45,6 +45,8 @@ RESET_ALIASES: dict[str, tuple[str, str]] = {
     "默认角色": ("ai_chat", "default_role"),
     "复读阈值": ("repeater", "threshold"),
 }
+GLOBAL_SETTINGS = set(RESET_ALIASES.values())
+GROUP_SETTINGS = set(RESET_ALIASES.values())
 
 
 @runtime_config.handle()
@@ -53,115 +55,157 @@ async def handle_runtime_config(event: MessageEvent) -> None:
         await runtime_config.finish(MessageSegment.text("只有管理员可以修改运行时配置。"))
 
     command = _parse_config_command(event.get_plaintext())
-    if not isinstance(event, GroupMessageEvent):
-        await runtime_config.finish(MessageSegment.text(_help_text()))
-
     if not command or command in {"帮助", "help"}:
-        await runtime_config.finish(MessageSegment.text(_help_text()))
+        await runtime_config.finish(MessageSegment.text(_help_text(is_group=isinstance(event, GroupMessageEvent))))
 
-    group_id = event.group_id
     updated_by = event.user_id
 
-    if command in {"查看", "list"}:
-        await runtime_config.finish(MessageSegment.text(await _format_group_settings(group_id)))
-
     try:
-        response = await _apply_group_setting(command, group_id, updated_by)
+        if isinstance(event, GroupMessageEvent):
+            response = await _handle_group_config(command, event.group_id, updated_by)
+        else:
+            response = await _handle_private_config(command, updated_by)
     except SettingsStoreError as exc:
         logger.warning("Runtime config command failed: {}", exc)
-        await runtime_config.finish(MessageSegment.text(f"运行时配置不可用：{exc}"))
+        await runtime_config.finish(MessageSegment.text(f"配置失败：{exc}"))
 
     await runtime_config.finish(MessageSegment.text(response))
 
 
-async def _apply_group_setting(command: str, group_id: int, updated_by: int) -> str:
+async def _handle_group_config(command: str, group_id: int, updated_by: int) -> str:
+    if command in {"查看", "list"}:
+        return await _format_group_settings(group_id)
+
+    return await _apply_scope_setting(
+        command,
+        "group",
+        group_id,
+        updated_by,
+        scope_label="当前群",
+        allowed_settings=GROUP_SETTINGS,
+    )
+
+
+async def _handle_private_config(command: str, updated_by: int) -> str:
+    if command in {"查看", "list", "全局 查看", "全局 list"}:
+        return await _format_global_settings()
+
+    if command.startswith("全局 "):
+        command = command.removeprefix("全局 ").strip()
+
+    return await _apply_scope_setting(
+        command,
+        "global",
+        None,
+        updated_by,
+        scope_label="全局",
+        allowed_settings=GLOBAL_SETTINGS,
+    )
+
+
+async def _apply_scope_setting(
+    command: str,
+    scope_type: ScopeType,
+    scope_id: int | None,
+    updated_by: int,
+    *,
+    scope_label: str,
+    allowed_settings: set[tuple[str, str]],
+) -> str:
     if command in {"每日新闻 开", "每日新闻 开启"}:
+        _require_allowed(("daily_news", "enabled"), allowed_settings, scope_label)
         await runtime_settings.set_value_async(
-            "group",
-            group_id,
+            scope_type,
+            scope_id,
             "daily_news",
             "enabled",
             True,
             updated_by=updated_by,
         )
-        return "已开启当前群的每日新闻。"
+        return f"已开启{scope_label}的每日新闻。"
 
     if command in {"每日新闻 关", "每日新闻 关闭"}:
+        _require_allowed(("daily_news", "enabled"), allowed_settings, scope_label)
         await runtime_settings.set_value_async(
-            "group",
-            group_id,
+            scope_type,
+            scope_id,
             "daily_news",
             "enabled",
             False,
             updated_by=updated_by,
         )
-        return "已关闭当前群的每日新闻。"
+        return f"已关闭{scope_label}的每日新闻。"
 
     match = re.fullmatch(r"火烧云城市\s+(.+)", command)
     if match:
+        _require_allowed(("sunset", "default_city"), allowed_settings, scope_label)
         city = match.group(1).strip()
         await runtime_settings.set_value_async(
-            "group",
-            group_id,
+            scope_type,
+            scope_id,
             "sunset",
             "default_city",
             city,
             updated_by=updated_by,
         )
-        return f"已将当前群火烧云默认城市设为：{city}"
+        return f"已将{scope_label}火烧云默认城市设为：{city}"
 
     if command in {"AI联网 开", "AI联网 开启", "ai联网 开", "ai联网 开启"}:
+        _require_allowed(("ai_chat", "web_search"), allowed_settings, scope_label)
         await runtime_settings.set_value_async(
-            "group",
-            group_id,
+            scope_type,
+            scope_id,
             "ai_chat",
             "web_search",
             True,
             updated_by=updated_by,
         )
-        return "已开启当前群 AI 联网。"
+        return f"已开启{scope_label} AI 联网。"
 
     if command in {"AI联网 关", "AI联网 关闭", "ai联网 关", "ai联网 关闭"}:
+        _require_allowed(("ai_chat", "web_search"), allowed_settings, scope_label)
         await runtime_settings.set_value_async(
-            "group",
-            group_id,
+            scope_type,
+            scope_id,
             "ai_chat",
             "web_search",
             False,
             updated_by=updated_by,
         )
-        return "已关闭当前群 AI 联网。"
+        return f"已关闭{scope_label} AI 联网。"
 
     match = re.fullmatch(r"默认角色\s+(\S+)", command)
     if match:
+        _require_allowed(("ai_chat", "default_role"), allowed_settings, scope_label)
         role_name = match.group(1).strip()
         role_store = RoleStore(ai_chat_config.aichat_roles_path, ai_chat_config.aichat_default_role)
         if not role_store.has_role(role_name):
             return f"没有找到角色：{role_name}\n可用角色：{'、'.join(role_store.list_roles())}"
         await runtime_settings.set_value_async(
-            "group",
-            group_id,
+            scope_type,
+            scope_id,
             "ai_chat",
             "default_role",
             role_name,
             updated_by=updated_by,
         )
-        return f"已将当前群默认 AI 角色设为：{role_name}"
+        return f"已将{scope_label}默认 AI 角色设为：{role_name}"
 
     match = re.fullmatch(r"复读阈值\s+(\d+)", command)
     if match:
+        _require_allowed(("repeater", "threshold"), allowed_settings, scope_label)
         threshold = int(match.group(1))
         await runtime_settings.set_value_async(
-            "group",
-            group_id,
+            scope_type,
+            scope_id,
             "repeater",
             "threshold",
             threshold,
             updated_by=updated_by,
         )
         if threshold < 2:
-            return "已关闭当前群复读。"
-        return f"已将当前群复读阈值设为：{threshold}"
+            return f"已关闭{scope_label}复读。"
+        return f"已将{scope_label}复读阈值设为：{threshold}"
 
     match = re.fullmatch(r"重置\s+(.+)", command)
     if match:
@@ -169,10 +213,11 @@ async def _apply_group_setting(command: str, group_id: int, updated_by: int) -> 
         setting = RESET_ALIASES.get(target)
         if setting is None:
             return f"不知道要重置哪项配置：{target}\n可重置：{'、'.join(RESET_ALIASES)}"
-        deleted = await runtime_settings.delete_value_async("group", group_id, setting[0], setting[1])
-        return "已重置当前群配置。" if deleted else "当前群没有设置过这项配置。"
+        _require_allowed(setting, allowed_settings, scope_label)
+        deleted = await runtime_settings.delete_value_async(scope_type, scope_id, setting[0], setting[1])
+        return f"已重置{scope_label}配置。" if deleted else f"{scope_label}没有设置过这项配置。"
 
-    return _help_text()
+    return _help_text(is_group=scope_type == "group")
 
 
 async def _format_group_settings(group_id: int) -> str:
@@ -228,8 +273,60 @@ def _daily_news_env_default(group_id: int) -> bool:
     return group_id not in group_ids
 
 
-def _source(stored_values: dict[tuple[str, str], Any], namespace: str, key: str) -> str:
-    return "（群配置）" if (namespace, key) in stored_values else "（默认）"
+async def _format_global_settings() -> str:
+    stored_values = await runtime_settings.list_scope_values_async("global", None)
+    daily_news_enabled = await runtime_settings.get_bool_async(
+        "daily_news",
+        "enabled",
+        daily_news_config.dailynews_enabled,
+    )
+    sunset_city = await runtime_settings.get_str_async(
+        "sunset",
+        "default_city",
+        sunset_config.sunset_default_city,
+    )
+    ai_web_search = await runtime_settings.get_bool_async(
+        "ai_chat",
+        "web_search",
+        ai_chat_config.aichat_web_search,
+    )
+    ai_default_role = await runtime_settings.get_str_async(
+        "ai_chat",
+        "default_role",
+        ai_chat_config.aichat_default_role,
+    )
+    repeater_threshold = await runtime_settings.get_int_async(
+        "repeater",
+        "threshold",
+        repeater_config.repeater_threshold,
+    )
+
+    lines = ["全局运行时配置："]
+    lines.append(f"每日新闻：{_on_off(daily_news_enabled)}{_source(stored_values, 'daily_news', 'enabled', '全局配置')}")
+    lines.append(f"火烧云城市：{sunset_city}{_source(stored_values, 'sunset', 'default_city', '全局配置')}")
+    lines.append(f"AI联网：{_on_off(ai_web_search)}{_source(stored_values, 'ai_chat', 'web_search', '全局配置')}")
+    lines.append(f"默认角色：{ai_default_role}{_source(stored_values, 'ai_chat', 'default_role', '全局配置')}")
+    repeater_text = "关闭" if repeater_threshold < 2 else str(repeater_threshold)
+    lines.append(f"复读阈值：{repeater_text}{_source(stored_values, 'repeater', 'threshold', '全局配置')}")
+    return "\n".join(lines)
+
+
+def _source(
+    stored_values: dict[tuple[str, str], Any],
+    namespace: str,
+    key: str,
+    configured_label: str = "群配置",
+) -> str:
+    return f"（{configured_label}）" if (namespace, key) in stored_values else "（默认）"
+
+
+def _require_allowed(
+    setting: tuple[str, str],
+    allowed_settings: set[tuple[str, str]],
+    scope_label: str,
+) -> None:
+    if setting not in allowed_settings:
+        raise SettingsStoreError(f"{scope_label}配置不支持这项设置。")
 
 
 def _on_off(value: bool) -> str:
@@ -245,9 +342,21 @@ def _parse_config_command(message: str) -> str:
     return re.sub(r"^[.。]配置(?:\s+|$)", "", message, count=1).strip()
 
 
-def _help_text() -> str:
+def _help_text(*, is_group: bool) -> str:
+    if is_group:
+        return (
+            "群运行时配置命令：\n"
+            ".配置 查看\n"
+            ".配置 每日新闻 开/关\n"
+            ".配置 火烧云城市 上海\n"
+            ".配置 AI联网 开/关\n"
+            ".配置 默认角色 jarvis\n"
+            ".配置 复读阈值 3（小于 2 为关闭）\n"
+            ".配置 重置 火烧云城市"
+        )
+
     return (
-        "运行时配置命令：\n"
+        "私聊运行时配置命令：\n"
         ".配置 查看\n"
         ".配置 每日新闻 开/关\n"
         ".配置 火烧云城市 上海\n"

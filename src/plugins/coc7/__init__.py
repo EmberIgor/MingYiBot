@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass
 
 from nonebot import get_plugin_config, logger, on_regex
-from nonebot.adapters.onebot.v11 import MessageEvent
+from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent
 from nonebot.plugin import PluginMetadata
 from src.common.ai import AIConfig, create_openai_client, extract_content, request_response
 
@@ -15,14 +15,20 @@ __plugin_meta__ = PluginMetadata(
     description="COC7 核心骰子和快速建卡。",
     usage=(
         ".r 1d100\n"
+        ".rh 1d100\n"
         ".r 尝试驾驶汽车\n"
         ".ra 技能名 技能值\n"
         ".coc [数量]"
     ),
 )
 
+HIDDEN_ROLL_COMMAND_PATTERN = r"^[.。]rh\s*(.*)$"
+ROLL_COMMAND_PATTERN = r"^[.。]r(?![abhp])\s*(.*)$"
+HIDDEN_ROLL_ADD_FRIEND_TEXT = "暗骰结果需要通过私聊发送。请先添加机器人好友，机器人会自动通过；添加成功后再发送 .rh 进行暗骰。"
 
-roll_command = on_regex(r"^[.。]r(?![abp])\s*(.*)$", priority=15, block=True)
+
+hidden_roll_command = on_regex(HIDDEN_ROLL_COMMAND_PATTERN, priority=13, block=True)
+roll_command = on_regex(ROLL_COMMAND_PATTERN, priority=15, block=True)
 check_command = on_regex(r"^[.。]ra\s+(.+)$", priority=14, block=True)
 coc_command = on_regex(r"^[.。]coc\s*(\d*)$", priority=14, block=True)
 ai_config = get_plugin_config(AIConfig)
@@ -51,6 +57,25 @@ async def handle_roll(event: MessageEvent) -> None:
     await roll_command.finish(output)
 
 
+@hidden_roll_command.handle()
+async def handle_hidden_roll(bot: Bot, event: MessageEvent) -> None:
+    if isinstance(event, GroupMessageEvent) and not await _is_bot_friend(bot, event.user_id):
+        await hidden_roll_command.finish(HIDDEN_ROLL_ADD_FRIEND_TEXT)
+
+    request = _parse_roll_request(_message_text(event), command="rh")
+    try:
+        result = roll_expression(request.expression)
+    except DiceError as exc:
+        await hidden_roll_command.finish(str(exc))
+
+    output = _format_hidden_roll_output(request, result, event)
+    commentary = await _generate_roll_commentary(request, result)
+    if commentary:
+        output = f"{output}\n\n{commentary}"
+
+    await hidden_roll_command.finish(await _deliver_hidden_roll_output(bot, event, output))
+
+
 @check_command.handle()
 async def handle_check(event: MessageEvent) -> None:
     try:
@@ -74,8 +99,8 @@ def _message_text(event: MessageEvent) -> str:
     return event.get_plaintext().strip()
 
 
-def _parse_roll_request(message: str) -> RollRequest:
-    content = re.sub(r"^[.。]r(?![abp])\s*", "", message, count=1).strip()
+def _parse_roll_request(message: str, command: str = "r") -> RollRequest:
+    content = re.sub(rf"^[.。]{re.escape(command)}\s*", "", message, count=1).strip()
     if not content:
         return RollRequest("1d100")
 
@@ -103,6 +128,40 @@ def _parse_roll_expression(message: str) -> str:
     if request.expression == "1d100" and not request.reason:
         return ""
     return request.expression
+
+
+def _format_hidden_roll_output(request: RollRequest, result: DiceRoll, event: MessageEvent) -> str:
+    lines = ["暗骰结果"]
+    if isinstance(event, GroupMessageEvent):
+        lines[0] = f"暗骰结果（群 {event.group_id}）"
+    if request.reason:
+        lines.append(f"理由：{request.reason}")
+    lines.append(format_roll(result))
+    return "\n".join(lines)
+
+
+async def _deliver_hidden_roll_output(bot: Bot, event: MessageEvent, output: str) -> str:
+    if not isinstance(event, GroupMessageEvent):
+        return output
+
+    try:
+        await bot.send_private_msg(user_id=event.user_id, message=output)
+    except Exception as exc:
+        logger.warning("COC7 hidden roll private message failed for user {}: {}", event.user_id, exc)
+        return HIDDEN_ROLL_ADD_FRIEND_TEXT
+
+    return "暗骰结果已私聊发送。"
+
+
+async def _is_bot_friend(bot: Bot, user_id: int) -> bool:
+    try:
+        friends = await bot.get_friend_list()
+    except Exception as exc:
+        logger.warning("COC7 hidden roll failed to check friend list: {}", exc)
+        return True
+
+    user_id_text = str(user_id)
+    return any(str(friend.get("user_id")) == user_id_text for friend in friends)
 
 
 def _normalize_roll_expression(expression: str) -> str:

@@ -69,6 +69,27 @@ class RuntimeConfigCommandTest(unittest.TestCase):
         self.assertIn(".配置 群记录 开/关", runtime_config._help_text(is_group=False))
         self.assertIn(".配置 群记录保留 90", runtime_config._help_text(is_group=True))
 
+    def test_daily_news_config_response_mentions_scheduled_push(self) -> None:
+        fake_settings = FakeRuntimeSettings()
+        original_settings = runtime_config.runtime_settings
+        runtime_config.runtime_settings = fake_settings
+        try:
+            response = asyncio.run(
+                runtime_config._apply_scope_setting(
+                    "每日新闻 关",
+                    "group",
+                    100,
+                    123,
+                    scope_label="当前群",
+                    allowed_settings=runtime_config.GROUP_SETTINGS,
+                )
+            )
+        finally:
+            runtime_config.runtime_settings = original_settings
+
+        self.assertEqual(response, "已关闭当前群的每日新闻定时推送。")
+        self.assertEqual(fake_settings.set_calls, [("group", 100, "daily_news", "enabled", False, 123)])
+
 
 class FakeRuntimeSettings:
     def __init__(self) -> None:

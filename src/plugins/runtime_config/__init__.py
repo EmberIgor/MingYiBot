@@ -131,7 +131,7 @@ async def _apply_scope_setting(
             True,
             updated_by=updated_by,
         )
-        return f"已开启{scope_label}的每日新闻。"
+        return f"已开启{scope_label}的每日新闻定时推送。"
 
     if command in {"每日新闻 关", "每日新闻 关闭"}:
         _require_allowed(("daily_news", "enabled"), allowed_settings, scope_label)
@@ -143,7 +143,7 @@ async def _apply_scope_setting(
             False,
             updated_by=updated_by,
         )
-        return f"已关闭{scope_label}的每日新闻。"
+        return f"已关闭{scope_label}的每日新闻定时推送。"
 
     match = re.fullmatch(r"火烧云城市\s+(.+)", command)
     if match:
@@ -316,7 +316,7 @@ async def _format_group_settings(group_id: int) -> str:
         raise SettingsStoreError(str(exc)) from exc
 
     lines = [f"当前群运行时配置（{group_id}）："]
-    lines.append(f"每日新闻：{_on_off(daily_news_enabled)}{_source(stored_values, 'daily_news', 'enabled')}")
+    lines.append(f"每日新闻定时推送：{_on_off(daily_news_enabled)}{_source(stored_values, 'daily_news', 'enabled')}")
     lines.append(f"火烧云城市：{sunset_city}{_source(stored_values, 'sunset', 'default_city')}")
     lines.append(f"AI联网：{_on_off(ai_web_search)}{_source(stored_values, 'ai_chat', 'web_search')}")
     lines.append(f"默认角色：{ai_default_role}{_source(stored_values, 'ai_chat', 'default_role')}")
@@ -379,7 +379,7 @@ async def _format_global_settings() -> str:
     )
 
     lines = ["全局运行时配置："]
-    lines.append(f"每日新闻：{_on_off(daily_news_enabled)}{_source(stored_values, 'daily_news', 'enabled', '全局配置')}")
+    lines.append(f"每日新闻定时推送：{_on_off(daily_news_enabled)}{_source(stored_values, 'daily_news', 'enabled', '全局配置')}")
     lines.append(f"火烧云城市：{sunset_city}{_source(stored_values, 'sunset', 'default_city', '全局配置')}")
     lines.append(f"AI联网：{_on_off(ai_web_search)}{_source(stored_values, 'ai_chat', 'web_search', '全局配置')}")
     lines.append(f"默认角色：{ai_default_role}{_source(stored_values, 'ai_chat', 'default_role', '全局配置')}")

@@ -2,7 +2,7 @@ import asyncio
 from datetime import date, datetime, timedelta
 
 from nonebot import get_bots, get_driver, get_plugin_config, logger, on_regex
-from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent, MessageSegment
+from nonebot.adapters.onebot.v11 import Bot, MessageEvent, MessageSegment
 from nonebot.plugin import PluginMetadata
 from src.common.settings import get_runtime_settings_store
 
@@ -185,20 +185,19 @@ async def start_daily_news_scheduler() -> None:
 
 @today_news.handle()
 async def handle_today_news(event: MessageEvent) -> None:
+    await today_news.finish(await _build_today_news_command_response(event))
+
+
+async def _build_today_news_command_response(event: MessageEvent) -> MessageSegment | str:
     try:
         if not await _daily_news_is_today():
-            await today_news.finish("今日新闻还没有更新，请稍后再试。")
+            return "今日新闻还没有更新，请稍后再试。"
     except DailyNewsError as exc:
         logger.warning("Daily news command freshness check failed: {}", exc)
-        await today_news.finish(str(exc))
+        return str(exc)
 
     try:
-        message = _build_daily_news_message()
+        return _build_daily_news_message()
     except DailyNewsError as exc:
         logger.warning("Daily news command message build failed: {}", exc)
-        await today_news.finish(str(exc))
-
-    if isinstance(event, GroupMessageEvent) and not await _group_enabled(event.group_id):
-        await today_news.finish("当前群未开启每日新闻。")
-
-    await today_news.finish(message)
+        return str(exc)

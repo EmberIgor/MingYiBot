@@ -250,6 +250,7 @@ docker compose -f docker-compose.prod.yml up -d
 | 每日新闻定时推送 | 默认每天 `08:30` | 推送到允许范围内的群；如果新闻尚未更新，会按配置重试，默认最晚等到 `10:10`。 |
 | 火烧云私聊提醒 | 默认每天 `09:00`、`21:00` | 当默认城市的火烧云等级达到阈值时，私聊提醒管理员或配置的接收人。 |
 | 启动成功通知 | OneBot v11 连接成功时 | 私聊通知 `SUPERUSERS`：机器人已启动、QQ 已连接，以及当前后台版本号。 |
+| 请求自动处理 | 收到好友请求或邀请机器人入群时 | 自动通过请求，并私聊通知 `SUPERUSERS` 添加的好友 QQ 或加入的群号。 |
 
 ## 管理员配置要点
 
@@ -259,7 +260,7 @@ docker compose -f docker-compose.prod.yml up -d
 
 | 配置项 | 默认值 | 说明 |
 | --- | --- | --- |
-| `SUPERUSERS` | 空列表 | 管理员 QQ 号列表，例如 `["123456"]`。启动成功通知会发送给这里配置的用户。 |
+| `SUPERUSERS` | 空列表 | 管理员 QQ 号列表，例如 `["123456"]`。启动成功通知和请求自动处理通知会发送给这里配置的用户。 |
 | `MINGYI_VERSION` | `dev` | 后台版本号。GitHub Actions 构建镜像时会自动写入提交 SHA，通常不需要手动配置。 |
 
 ### 部署更新配置
@@ -435,6 +436,7 @@ MYSQL_PASSWORD=你的MySQL应用密码
         ├── message_archive
         ├── ping
         ├── repeater
+        ├── request_handler
         ├── runtime_config
         ├── startup_notify
         └── sunset

@@ -68,7 +68,8 @@ async def handle_hidden_roll(bot: Bot, event: MessageEvent) -> None:
     except DiceError as exc:
         await hidden_roll_command.finish(str(exc))
 
-    output = _format_hidden_roll_output(request, result, event)
+    group_name = await _fetch_group_name(bot, event) if isinstance(event, GroupMessageEvent) else None
+    output = _format_hidden_roll_output(request, result, event, group_name=group_name)
     commentary = await _generate_roll_commentary(request, result)
     if commentary:
         output = f"{output}\n\n{commentary}"
@@ -130,10 +131,16 @@ def _parse_roll_expression(message: str) -> str:
     return request.expression
 
 
-def _format_hidden_roll_output(request: RollRequest, result: DiceRoll, event: MessageEvent) -> str:
+def _format_hidden_roll_output(
+    request: RollRequest,
+    result: DiceRoll,
+    event: MessageEvent,
+    group_name: str | None = None,
+) -> str:
     lines = ["暗骰结果"]
     if isinstance(event, GroupMessageEvent):
-        lines[0] = f"暗骰结果（群 {event.group_id}）"
+        group_label = group_name or str(event.group_id)
+        lines[0] = f"暗骰结果（群：{group_label}）"
     if request.reason:
         lines.append(f"理由：{request.reason}")
     lines.append(format_roll(result))
@@ -162,6 +169,17 @@ async def _is_bot_friend(bot: Bot, user_id: int) -> bool:
 
     user_id_text = str(user_id)
     return any(str(friend.get("user_id")) == user_id_text for friend in friends)
+
+
+async def _fetch_group_name(bot: Bot, event: GroupMessageEvent) -> str | None:
+    try:
+        group_info = await bot.get_group_info(group_id=event.group_id, no_cache=True)
+    except Exception as exc:
+        logger.warning("COC7 hidden roll failed to fetch group info for {}: {}", event.group_id, exc)
+        return None
+
+    group_name = str(group_info.get("group_name") or "").strip()
+    return group_name or None
 
 
 def _normalize_roll_expression(expression: str) -> str:

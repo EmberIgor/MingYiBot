@@ -32,13 +32,19 @@ class Coc7HiddenRollTest(unittest.TestCase):
     def test_hidden_roll_group_output_is_delivered_privately(self) -> None:
         bot = FakeBot(friends=[123])
         event = _group_event(".rh 1d6", user_id=123, group_id=456)
-        output = coc7._format_hidden_roll_output(coc7.RollRequest("1d6", "侦查"), DiceRoll("1d6", 4, "1d6[4]"), event)
+        output = coc7._format_hidden_roll_output(
+            coc7.RollRequest("1d6", "侦查"),
+            DiceRoll("1d6", 4, "1d6[4]"),
+            event,
+            group_name="茗懿测试群",
+        )
 
         public_response = asyncio.run(coc7._deliver_hidden_roll_output(bot, event, output))
 
         self.assertEqual(public_response, "暗骰结果已私聊发送。")
         self.assertEqual(bot.sent_messages, [(123, output)])
-        self.assertIn("暗骰结果（群 456）", output)
+        self.assertIn("暗骰结果（群：茗懿测试群）", output)
+        self.assertNotIn("群 456", output)
         self.assertIn("理由：侦查", output)
         self.assertIn("最终结果为：4", output)
 
@@ -56,6 +62,14 @@ class Coc7HiddenRollTest(unittest.TestCase):
 
         self.assertEqual(public_response, coc7.HIDDEN_ROLL_ADD_FRIEND_TEXT)
 
+    def test_hidden_roll_fetches_group_name(self) -> None:
+        bot = FakeBot(group_names={456: "茗懿测试群"})
+        event = _group_event(".rh 1d6", user_id=123, group_id=456)
+
+        group_name = asyncio.run(coc7._fetch_group_name(bot, event))
+
+        self.assertEqual(group_name, "茗懿测试群")
+
     def test_hidden_roll_private_output_returns_result_directly(self) -> None:
         bot = FakeBot()
         event = _private_event(".rh 1d6", user_id=123)
@@ -69,9 +83,16 @@ class Coc7HiddenRollTest(unittest.TestCase):
 
 
 class FakeBot:
-    def __init__(self, *, friends: list[int] | None = None, send_error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        friends: list[int] | None = None,
+        send_error: Exception | None = None,
+        group_names: dict[int, str] | None = None,
+    ) -> None:
         self.friends = friends or []
         self.send_error = send_error
+        self.group_names = group_names or {}
         self.sent_messages: list[tuple[int, str]] = []
 
     async def send_private_msg(self, *, user_id: int, message: str) -> None:
@@ -81,6 +102,9 @@ class FakeBot:
 
     async def get_friend_list(self) -> list[dict[str, int]]:
         return [{"user_id": user_id} for user_id in self.friends]
+
+    async def get_group_info(self, *, group_id: int, no_cache: bool = False) -> dict[str, int | str]:
+        return {"group_id": group_id, "group_name": self.group_names.get(group_id, "")}
 
 
 def _group_event(message: str, *, user_id: int, group_id: int) -> GroupMessageEvent:

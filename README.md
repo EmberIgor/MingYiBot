@@ -55,6 +55,13 @@ ghcr.io/emberigor/mingyibot:latest
 ghcr.io/emberigor/mingyibot:<commit-sha>
 ```
 
+如果在 GitHub 仓库 Secrets 中配置了 `DOCKERHUB_TOKEN`，同一次构建也会推送到 Docker Hub：
+
+```text
+emberigor/mingyibot:latest
+emberigor/mingyibot:<commit-sha>
+```
+
 `latest` 用于日常自动更新，提交 SHA tag 用于回滚。
 
 ### 2. 群晖首次部署

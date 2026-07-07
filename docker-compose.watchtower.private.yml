@@ -1,5 +1,0 @@
-services:
-  watchtower:
-    environment:
-      REPO_USER: "${GHCR_USERNAME}"
-      REPO_PASS: "${GHCR_PAT}"

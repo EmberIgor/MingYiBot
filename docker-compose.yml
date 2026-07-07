@@ -1,14 +1,18 @@
 services:
   bot:
+    image: ${MINGYI_IMAGE:-ghcr.io/emberigor/mingyibot:latest}
     build:
       context: .
       args:
         MINGYI_VERSION: "${MINGYI_VERSION:-dev}"
     container_name: mingyi-bot
     restart: unless-stopped
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
     env_file:
       - .env
     environment:
+      TZ: "${TZ:-Asia/Hong_Kong}"
       DRIVER: "~fastapi"
       HOST: "0.0.0.0"
       PORT: "8080"
@@ -19,3 +23,41 @@ services:
       - ./.env:/app/.env:ro
       - ./data:/app/data
       - ./logs:/app/logs
+    networks:
+      - app_network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import socket; s=socket.create_connection(('127.0.0.1', 8080), 5); s.close()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: mingyi-watchtower
+    restart: unless-stopped
+    environment:
+      TZ: "${TZ:-Asia/Hong_Kong}"
+      DOCKER_API_VERSION: "${DOCKER_API_VERSION:-1.40}"
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_HTTP_API_UPDATE: "true"
+      WATCHTOWER_HTTP_API_PERIODIC_POLLS: "true"
+      WATCHTOWER_HTTP_API_TOKEN: "${WATCHTOWER_HTTP_API_TOKEN}"
+      WATCHTOWER_POLL_INTERVAL: "${WATCHTOWER_POLL_INTERVAL:-60}"
+      WATCHTOWER_CLEANUP: "${WATCHTOWER_CLEANUP:-true}"
+      REPO_USER: "${REPO_USER:-}"
+      REPO_PASS: "${REPO_PASS:-}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge

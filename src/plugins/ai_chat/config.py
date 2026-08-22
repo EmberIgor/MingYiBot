@@ -1,3 +1,4 @@
+from pydantic import Field
 from src.common.ai import AIConfig
 from src.common.db import MySQLConfig
 
@@ -7,6 +8,10 @@ class Config(AIConfig, MySQLConfig):
     aichat_baseurl: str = ""
     aichat_model: str = ""
     aichat_web_search: bool = False
+    exa_api_key: str = ""
+    exa_timeout_seconds: float = Field(default=15.0, gt=0)
+    exa_num_results: int = Field(default=5, ge=1, le=10)
+    exa_highlight_max_characters: int = Field(default=1200, ge=100, le=10000)
     aichat_default_role: str = "default"
     aichat_history_limit: int = 12
     aichat_roles_path: str = "data/ai_chat_roles.json"

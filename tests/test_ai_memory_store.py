@@ -16,6 +16,7 @@ from src.plugins.ai_chat import _format_memory_list, _memory_id_for_display_inde
 from src.common.db import MySQLConfig, missing_mysql_config_keys
 from src.plugins.ai_chat.config import Config
 from src.plugins.ai_chat.data_source import ChatHandler
+from src.common.search import SearchResult
 from src.plugins.ai_chat.memory_store import (
     AI_CHAT_MEMORY_MIGRATIONS,
     MemoryStoreError,
@@ -187,6 +188,7 @@ class AIMemoryStoreTest(unittest.TestCase):
             aichat_key="key",
             aichat_model="model",
             aichat_web_search=False,
+            exa_api_key="exa-key",
         )
         handler = RecordingChatHandler(config, StubRoleStore())
 
@@ -194,6 +196,21 @@ class AIMemoryStoreTest(unittest.TestCase):
 
         self.assertEqual(response, "ok")
         self.assertTrue(handler.recorded_web_search)
+
+    def test_web_search_requires_exa_key_and_sources_are_dedicated_footer(self) -> None:
+        handler = RecordingChatHandler(
+            Config(aichat_memory_enabled=False, aichat_key="key", aichat_model="model"),
+            StubRoleStore(),
+        )
+        response = asyncio.run(handler.ask("latest", "session:1", "default", web_search=True))
+        self.assertEqual(response, "AI 联网尚未配置好，请设置 EXA_API_KEY。")
+        self.assertNotIn("session:1", handler.histories)
+
+        content = handler._append_sources(
+            "answer",
+            (SearchResult("Example", "https://example.com"),),
+        )
+        self.assertEqual(content, "answer\n\n来源：\n1. Example - https://example.com")
 
     def test_mysql_content_normalization_matches_json_store(self) -> None:
         store = MySQLMemoryStore.__new__(MySQLMemoryStore)

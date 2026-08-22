@@ -5,7 +5,10 @@ from .responses import (
     extract_content,
     is_retryable_error,
     request_response,
+    request_response_with_search,
     response_preview,
+    SearchAugmentedResponse,
+    SearchToolUnsupportedError,
 )
 
 __all__ = [
@@ -15,5 +18,8 @@ __all__ = [
     "extract_content",
     "is_retryable_error",
     "request_response",
+    "request_response_with_search",
     "response_preview",
+    "SearchAugmentedResponse",
+    "SearchToolUnsupportedError",
 ]

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import threading
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -68,29 +69,38 @@ class MessageArchiveStore:
     def __init__(self, config: Config) -> None:
         self.config = config
         self._schema_ready = False
+        self._schema_lock = threading.Lock()
 
     def ensure_schema(self) -> None:
         if self._schema_ready:
             return
-        try:
-            run_mysql_migrations(
-                self.config,
-                namespace="message_archive",
-                migrations=MESSAGE_ARCHIVE_MIGRATIONS,
-            )
-        except Exception as exc:
-            raise self._archive_error(exc) from exc
-        self._schema_ready = True
+        with self._schema_lock:
+            if self._schema_ready:
+                return
+            try:
+                run_mysql_migrations(
+                    self.config,
+                    namespace="message_archive",
+                    migrations=MESSAGE_ARCHIVE_MIGRATIONS,
+                )
+            except Exception as exc:
+                raise self._archive_error(exc) from exc
+            self._schema_ready = True
 
     async def ensure_schema_async(self) -> None:
         await asyncio.to_thread(self.ensure_schema)
 
     def record_message(self, message: ArchivedGroupMessage) -> None:
+        self.record_messages([message])
+
+    def record_messages(self, messages: list[ArchivedGroupMessage]) -> None:
+        if not messages:
+            return
         try:
             self.ensure_schema()
             with connect_mysql(self.config) as connection:
                 with connection.cursor() as cursor:
-                    cursor.execute(
+                    cursor.executemany(
                         """
                         INSERT INTO group_message_records
                             (
@@ -118,7 +128,7 @@ class MessageArchiveStore:
                             content_hash = VALUES(content_hash),
                             sent_at = VALUES(sent_at)
                         """,
-                        (
+                        [(
                             message.group_id,
                             message.user_id,
                             message.message_id,
@@ -132,7 +142,7 @@ class MessageArchiveStore:
                             message.segment_types,
                             message.content_hash,
                             message.sent_at,
-                        ),
+                        ) for message in messages],
                     )
                 connection.commit()
         except Exception as exc:
@@ -140,6 +150,9 @@ class MessageArchiveStore:
 
     async def record_message_async(self, message: ArchivedGroupMessage) -> None:
         await asyncio.to_thread(self.record_message, message)
+
+    async def record_messages_async(self, messages: list[ArchivedGroupMessage]) -> None:
+        await asyncio.to_thread(self.record_messages, messages)
 
     def prune_group_before(self, group_id: int | str, before: datetime) -> int:
         try:
@@ -161,6 +174,19 @@ class MessageArchiveStore:
 
     async def prune_group_before_async(self, group_id: int | str, before: datetime) -> int:
         return await asyncio.to_thread(self.prune_group_before, group_id, before)
+
+    def list_archived_group_ids(self) -> list[str]:
+        try:
+            self.ensure_schema()
+            with connect_mysql(self.config) as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT DISTINCT group_id FROM group_message_records")
+                    return [str(row[0]) for row in cursor.fetchall()]
+        except Exception as exc:
+            raise self._archive_error(exc) from exc
+
+    async def list_archived_group_ids_async(self) -> list[str]:
+        return await asyncio.to_thread(self.list_archived_group_ids)
 
     def _archive_error(self, exc: Exception) -> MessageArchiveError:
         if isinstance(exc, MessageArchiveError):

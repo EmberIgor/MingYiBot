@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import unittest
 from datetime import datetime
 from typing import Any
@@ -13,6 +14,7 @@ except ValueError:
     nonebot.init()
 
 from src.plugins.message_archive.config import Config
+import src.plugins.message_archive as archive_plugin
 from src.plugins.message_archive.store import (
     MESSAGE_ARCHIVE_MIGRATIONS,
     ArchivedGroupMessage,
@@ -75,6 +77,41 @@ class MessageArchiveStoreTest(unittest.TestCase):
         self.assertEqual(connection.executed[0][1][2], "300")
         self.assertIn("ON DUPLICATE KEY UPDATE", connection.executed[0][0])
 
+    def test_record_messages_uses_one_batch_and_commit(self) -> None:
+        connection = FakeConnection()
+        store = MessageArchiveStore(Config(mysql_host="db", mysql_user="u", mysql_password="p"))
+        messages = [self._message("1"), self._message("2")]
+        with (
+            patch("src.plugins.message_archive.store.run_mysql_migrations"),
+            patch("src.plugins.message_archive.store.connect_mysql", return_value=connection),
+        ):
+            store.record_messages(messages)
+        self.assertEqual(len(connection.executed), 2)
+        self.assertEqual([params[2] for _, params in connection.executed], ["1", "2"])
+        self.assertTrue(connection.committed)
+
+    def test_archive_queue_drops_new_record_when_full(self) -> None:
+        original_queue = archive_plugin._archive_queue
+        original_accepting = archive_plugin._archive_accepting
+        archive_plugin._archive_queue = asyncio.Queue(maxsize=1)
+        archive_plugin._archive_accepting = True
+        try:
+            self.assertTrue(archive_plugin._enqueue_archive(self._message("1"), 90))
+            self.assertFalse(archive_plugin._enqueue_archive(self._message("2"), 90))
+            self.assertEqual(archive_plugin._archive_queue.qsize(), 1)
+        finally:
+            archive_plugin._archive_queue = original_queue
+            archive_plugin._archive_accepting = original_accepting
+
+    @staticmethod
+    def _message(message_id: str) -> ArchivedGroupMessage:
+        return ArchivedGroupMessage(
+            group_id="100", user_id="200", message_id=message_id, bot_id="400",
+            sender_nickname="n", sender_card="c", message_type="group", sub_type="normal",
+            message_text="text", message_json="[]", segment_types="text",
+            content_hash="a" * 64, sent_at=datetime(2026, 1, 1),
+        )
+
 class FakeConnection:
     def __init__(self) -> None:
         self.cursor_obj = FakeCursor()
@@ -107,6 +144,9 @@ class FakeCursor:
 
     def execute(self, sql: str, params: tuple[Any, ...] = ()) -> None:
         self.executed.append((sql, params))
+
+    def executemany(self, sql: str, params: list[tuple[Any, ...]]) -> None:
+        self.executed.extend((sql, item) for item in params)
 
 
 if __name__ == "__main__":

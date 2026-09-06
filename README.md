@@ -306,8 +306,12 @@ MYSQL_PASSWORD=你的MySQL应用密码
 | --- | --- | --- |
 | `MESSAGE_ARCHIVE_ENABLED` | `false` | 群消息记录的默认开关。为保护隐私，建议保持关闭并按群开启。 |
 | `MESSAGE_ARCHIVE_RETENTION_DAYS` | `90` | 默认保留天数；也可在群里用 `.群记录 保留 90` 覆盖。 |
+| `MESSAGE_ARCHIVE_QUEUE_SIZE` | `1000` | 消息归档后台队列容量；队列满时丢弃新记录，避免影响机器人响应。 |
+| `MESSAGE_ARCHIVE_WORKERS` | `2` | 归档队列消费者数量。 |
+| `MESSAGE_ARCHIVE_BATCH_SIZE` | `50` | 每次数据库批量写入的最大消息数。 |
+| `MESSAGE_ARCHIVE_FLUSH_INTERVAL_SECONDS` | `0.5` | 未达到批量上限时的最长等待秒数。 |
 
-开启后会通过 migration 创建 `group_message_records` 表。每群每天会顺手清理一次超过保留期的旧消息；如果数据库不可用，消息记录会跳过并限频写日志，不影响其他群聊功能。
+开启后会通过 migration 创建 `group_message_records` 表。消息通过有界队列批量写入，超过保留期的数据由每日后台任务清理；如果数据库不可用或队列已满，消息记录会跳过并限频写日志，不影响其他群聊功能。
 
 ### AI 聊天配置
 
@@ -333,6 +337,8 @@ MYSQL_PASSWORD=你的MySQL应用密码
 | `AICHAT_HISTORY_LIMIT` | `12` | 每个会话保留的消息条数，包含 system 消息；裁剪时会保留完整问答轮次。 |
 | `AICHAT_ROLES_PATH` | `data/ai_chat_roles.json` | 角色配置文件路径。首次启动会自动生成默认角色文件。 |
 | `AICHAT_SESSION_TTL_MINUTES` | `1440` | 会话上下文过期时间，单位分钟。 |
+| `AICHAT_MAX_CONCURRENCY` | `5` | 所有会话同时请求 AI 模型的最大数量。 |
+| `AICHAT_REQUEST_TIMEOUT_SECONDS` | `60` | 单轮 AI 请求（包含重试）的最长等待秒数。 |
 | `AICHAT_MEMORY_ENABLED` | `true` | 是否启用 AI 长期记忆。 |
 | `AICHAT_MEMORY_BACKEND` | `mysql` | 长期记忆存储后端，可选 `mysql` 或 `json`；默认使用 MySQL。 |
 | `AICHAT_MEMORY_PATH` | `data/ai_chat_memories.json` | JSON 记忆文件路径。MySQL 后端首次启动时会从这里导入旧记忆，之后保留为回滚备份。 |

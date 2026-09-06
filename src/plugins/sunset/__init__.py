@@ -6,6 +6,7 @@ from nonebot import get_bots, get_driver, get_plugin_config, logger, on_regex
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent, MessageSegment
 from nonebot.plugin import PluginMetadata
 from src.common.settings import get_runtime_settings_store
+from src.common.background_tasks import create_background_task
 
 from .config import Config
 from .data_source import (
@@ -168,4 +169,4 @@ async def start_sunset_notify_scheduler() -> None:
     if not config.sunset_notify_enabled:
         return
 
-    asyncio.create_task(_sunset_notify_scheduler())
+    create_background_task(_sunset_notify_scheduler(), name="sunset-scheduler", key="sunset-scheduler")

@@ -10,6 +10,7 @@ from urllib.request import Request, urlopen
 from nonebot import get_driver, get_plugin_config, logger, on_regex
 from nonebot.adapters.onebot.v11 import MessageEvent, MessageSegment
 from nonebot.plugin import PluginMetadata
+from src.common.background_tasks import shutdown_background_tasks
 
 from .config import Config
 
@@ -91,6 +92,7 @@ def _update_url() -> str:
 async def _restart_process() -> None:
     await asyncio.sleep(1.0)
     logger.warning("Restarting bot process by admin command.")
+    await shutdown_background_tasks(timeout_seconds=10.0)
     try:
         os.execv(sys.executable, [sys.executable, *sys.argv])
     except Exception as exc:

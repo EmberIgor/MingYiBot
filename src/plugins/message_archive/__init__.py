@@ -11,6 +11,7 @@ from nonebot import get_driver, get_plugin_config, logger, on_message, on_regex
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageEvent, MessageSegment
 from nonebot.plugin import PluginMetadata
 from src.common.settings import SettingsStoreError, get_runtime_settings_store
+from src.common.background_tasks import create_background_task, register_shutdown_callback
 
 from .config import Config
 from .store import (
@@ -44,7 +45,11 @@ archive_listener = on_message(priority=1, block=False)
 archive_control = on_regex(r"^[.。](?:群记录|消息记录)(?:\s+|$).*$", priority=12, block=True)
 
 _last_error_logged_at = 0.0
-_last_pruned_dates: dict[str, str] = {}
+_archive_queue: asyncio.Queue[ArchivedGroupMessage] = asyncio.Queue(maxsize=config.message_archive_queue_size)
+_archive_workers: list[asyncio.Task] = []
+_group_retention_days: dict[str, int] = {}
+_archive_accepting = True
+_last_queue_warning_at = 0.0
 
 
 @archive_listener.handle()
@@ -56,7 +61,7 @@ async def handle_archive_listener(event: MessageEvent) -> None:
 
     record = _build_archive_message(event)
     retention_days = await _retention_days(event.group_id)
-    asyncio.create_task(_record_group_message(record, retention_days))
+    _enqueue_archive(record, retention_days)
 
 
 @archive_control.handle()
@@ -123,22 +128,106 @@ async def handle_archive_control(event: MessageEvent) -> None:
     )
 
 
-async def _record_group_message(record: ArchivedGroupMessage, retention_days: int) -> None:
+def _enqueue_archive(record: ArchivedGroupMessage, retention_days: int) -> bool:
+    global _last_queue_warning_at
+    if not _archive_accepting:
+        return False
+    _group_retention_days[record.group_id] = retention_days
     try:
-        await archive_store.record_message_async(record)
-        await _maybe_prune_group(record.group_id, retention_days)
+        _archive_queue.put_nowait(record)
+        return True
+    except asyncio.QueueFull:
+        now = time.monotonic()
+        if now - _last_queue_warning_at >= 60:
+            _last_queue_warning_at = now
+            logger.warning("Message archive queue is full; new records are being dropped")
+        return False
+
+
+async def _archive_worker(worker_number: int) -> None:
+    while True:
+        first = await _archive_queue.get()
+        batch = [first]
+        deadline = asyncio.get_running_loop().time() + config.message_archive_flush_interval_seconds
+        try:
+            while len(batch) < config.message_archive_batch_size:
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    break
+                try:
+                    batch.append(await asyncio.wait_for(_archive_queue.get(), timeout=remaining))
+                except TimeoutError:
+                    break
+            try:
+                await archive_store.record_messages_async(batch)
+            except MessageArchiveError as exc:
+                _log_archive_error(exc)
+        finally:
+            for _ in batch:
+                _archive_queue.task_done()
+
+
+async def _archive_prune_scheduler() -> None:
+    while True:
+        await _prune_known_groups()
+        await asyncio.sleep(24 * 60 * 60)
+
+
+async def _prune_known_groups() -> None:
+    try:
+        group_ids = set(await archive_store.list_archived_group_ids_async())
     except MessageArchiveError as exc:
         _log_archive_error(exc)
-
-
-async def _maybe_prune_group(group_id: str, retention_days: int) -> None:
-    today_key = datetime.now(LOCAL_TZ).date().isoformat()
-    prune_key = f"{group_id}:{today_key}"
-    if _last_pruned_dates.get(group_id) == prune_key:
         return
-    before = datetime.now(timezone.utc) - timedelta(days=max(1, retention_days))
-    await archive_store.prune_group_before_async(group_id, before.replace(tzinfo=None))
-    _last_pruned_dates[group_id] = prune_key
+    group_ids.update(_group_retention_days)
+    for group_id in group_ids:
+        retention_days = _group_retention_days.get(group_id)
+        if retention_days is None:
+            retention_days = await _retention_days(int(group_id))
+        before = datetime.now(timezone.utc) - timedelta(days=max(1, retention_days))
+        try:
+            await archive_store.prune_group_before_async(group_id, before.replace(tzinfo=None))
+        except MessageArchiveError as exc:
+            _log_archive_error(exc)
+
+
+@driver.on_startup
+async def start_archive_workers() -> None:
+    global _archive_accepting
+    _archive_accepting = True
+    if _archive_workers:
+        return
+    for worker_number in range(config.message_archive_workers):
+        task = create_background_task(
+            _archive_worker(worker_number),
+            name=f"message-archive-worker:{worker_number}",
+            key=f"message-archive-worker:{worker_number}",
+        )
+        if task is not None:
+            _archive_workers.append(task)
+    create_background_task(
+        _archive_prune_scheduler(),
+        name="message-archive-pruner",
+        key="message-archive-pruner",
+    )
+
+
+async def stop_archive_workers() -> None:
+    global _archive_accepting
+    _archive_accepting = False
+    try:
+        await asyncio.wait_for(_archive_queue.join(), timeout=10.0)
+    except TimeoutError:
+        logger.warning("Message archive queue did not drain before shutdown")
+    for task in _archive_workers:
+        if not task.done():
+            task.cancel()
+    if _archive_workers:
+        await asyncio.gather(*_archive_workers, return_exceptions=True)
+    _archive_workers.clear()
+
+
+register_shutdown_callback(stop_archive_workers)
 
 
 async def _format_archive_status(group_id: int) -> str:

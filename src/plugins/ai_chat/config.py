@@ -16,6 +16,8 @@ class Config(AIConfig, MySQLConfig):
     aichat_history_limit: int = 12
     aichat_roles_path: str = "data/ai_chat_roles.json"
     aichat_session_ttl_minutes: int = 1440
+    aichat_max_concurrency: int = Field(default=5, ge=1, le=100)
+    aichat_request_timeout_seconds: float = Field(default=60.0, gt=0)
     aichat_memory_enabled: bool = True
     aichat_memory_backend: str = "mysql"
     aichat_memory_path: str = "data/ai_chat_memories.json"

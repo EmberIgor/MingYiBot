@@ -19,6 +19,7 @@ from src.common.ai import (
     SearchToolUnsupportedError,
 )
 from src.common.search import ExaSearchProvider, SearchResult
+from src.common.background_tasks import create_background_task
 
 from .config import Config
 from .memory_store import MemoryStore, MemoryStoreError, MySQLMemoryStore, UnavailableMemoryStore
@@ -41,6 +42,9 @@ class ChatHandler:
         self.histories: dict[str, list[dict[str, str]]] = {}
         self.last_active_at: dict[str, float] = {}
         self.memory_turn_counts: dict[str, int] = {}
+        self._session_locks: dict[str, asyncio.Lock] = {}
+        self._session_versions: dict[str, int] = {}
+        self._request_semaphore = asyncio.Semaphore(config.aichat_max_concurrency)
 
     async def ask(
         self,
@@ -60,68 +64,128 @@ class ChatHandler:
         if search_enabled and not self.search_provider:
             return "AI 联网尚未配置好，请设置 EXA_API_KEY。"
 
+        lock = self._session_locks.setdefault(session_id, asyncio.Lock())
+        async with lock:
+            result = await self._ask_locked(
+                message, session_id, role_name, image_urls or [], memory_scope, search_enabled
+            )
+        if session_id not in self.histories and session_id not in self.last_active_at:
+            self._session_locks.pop(session_id, None)
+            self._session_versions.pop(session_id, None)
+        return result
+
+    async def _ask_locked(
+        self,
+        message: str,
+        session_id: str,
+        role_name: str,
+        image_urls: list[str],
+        memory_scope: str | None,
+        web_search: bool,
+    ) -> str:
         self._touch(session_id)
+        version = self._session_versions.get(session_id, 0)
         system_prompt = self.role_store.get_prompt(role_name)
-        history = self.histories.setdefault(
-            session_id,
-            [{"role": "system", "content": system_prompt}],
-        )
+        history = self.histories.setdefault(session_id, [{"role": "system", "content": system_prompt}])
         if history[0]["content"] != system_prompt:
             history[:] = [{"role": "system", "content": system_prompt}]
 
-        history.append({"role": "user", "content": message})
+        user_message = {"role": "user", "content": message}
+        history.append(user_message)
+        request_history = [item.copy() for item in history]
         memories = await self._memory_items(memory_scope)
 
-        for retry in range(3):
-            try:
-                response = await self._request_ai(
-                    system_prompt,
-                    history,
-                    image_urls or [],
-                    memories,
-                    web_search=web_search,
+        try:
+            async with asyncio.timeout(self.config.aichat_request_timeout_seconds):
+                response = await self._request_with_retries(
+                    system_prompt, request_history, image_urls, memories, web_search
                 )
-                break
-            except SearchToolUnsupportedError as exc:
-                history.pop()
-                logger.warning("AI search tool is unsupported: {}", exc)
-                return str(exc)
-            except Exception as exc:
-                if retry == 2 or not is_retryable_error(exc):
-                    history.pop()
-                    logger.exception("AI chat request failed: {}", exc)
-                    return "AI 聊天请求失败，请稍后再试。"
-                await asyncio.sleep(0.5 * (retry + 1))
-        else:
-            history.pop()
+        except SearchToolUnsupportedError as exc:
+            self._remove_history_item(session_id, user_message, version)
+            logger.warning("AI search tool is unsupported: {}", exc)
+            return str(exc)
+        except TimeoutError:
+            self._remove_history_item(session_id, user_message, version)
+            logger.warning("AI chat request timed out for session {}", session_id)
+            return "AI 聊天请求失败，请稍后再试。"
+        except Exception as exc:
+            self._remove_history_item(session_id, user_message, version)
+            logger.exception("AI chat request failed: {}", exc)
             return "AI 聊天请求失败，请稍后再试。"
 
         sources: tuple[SearchResult, ...] = ()
         if isinstance(response, SearchAugmentedResponse):
             sources = response.sources
             response = response.response
-        content = extract_content(response)
-        content = self._to_qq_plain_text(content)
+        content = self._to_qq_plain_text(extract_content(response))
         if not content:
             logger.warning("AI chat response had no extractable text: {}", response_preview(response))
-            history.pop()
+            self._remove_history_item(session_id, user_message, version)
             return "AI 没有返回可发送的内容，请稍后再试。"
 
         content = self._append_sources(content, sources)
-        history.append({"role": "assistant", "content": content})
+        if self._session_versions.get(session_id, 0) != version:
+            return content
+        current_history = self.histories.get(session_id)
+        if current_history is None or not any(item is user_message for item in current_history):
+            return content
+        current_history.append({"role": "assistant", "content": content})
         self._trim_history(session_id, system_prompt)
         self._touch(session_id)
         self._schedule_memory_summary_if_needed(memory_scope, self.histories[session_id])
         return content
 
+    async def _request_with_retries(
+        self,
+        system_prompt: str,
+        history: list[dict[str, str]],
+        image_urls: list[str],
+        memories: list[dict[str, str]],
+        web_search: bool,
+    ) -> Any:
+        for retry in range(3):
+            try:
+                async with self._request_semaphore:
+                    return await self._request_ai(
+                        system_prompt, history, image_urls, memories, web_search=web_search
+                    )
+            except SearchToolUnsupportedError:
+                raise
+            except Exception as exc:
+                if retry == 2 or not is_retryable_error(exc):
+                    raise
+                await asyncio.sleep(0.5 * (retry + 1))
+        raise RuntimeError("AI request retry loop ended unexpectedly")
+
+    def _remove_history_item(self, session_id: str, item: dict[str, str], version: int) -> None:
+        if self._session_versions.get(session_id, 0) != version:
+            return
+        history = self.histories.get(session_id)
+        if history:
+            history[:] = [candidate for candidate in history if candidate is not item]
+
     def clear_history(self, session_id: str | None = None) -> None:
         if session_id is None:
+            existing_ids = set(self.histories) | set(self._session_versions) | set(self._session_locks)
+            for existing_id in existing_ids:
+                self._session_versions[existing_id] = self._session_versions.get(existing_id, 0) + 1
             self.histories.clear()
             self.last_active_at.clear()
+            self.memory_turn_counts.clear()
+            for existing_id in existing_ids:
+                lock = self._session_locks.get(existing_id)
+                if lock is None or not lock.locked():
+                    self._session_locks.pop(existing_id, None)
+                    self._session_versions.pop(existing_id, None)
             return
 
+        self._session_versions[session_id] = self._session_versions.get(session_id, 0) + 1
         self.histories.pop(session_id, None)
         self.last_active_at.pop(session_id, None)
+        lock = self._session_locks.get(session_id)
+        if lock is None or not lock.locked():
+            self._session_locks.pop(session_id, None)
+            self._session_versions.pop(session_id, None)
 
     def cleanup_expired(self) -> int:
         ttl_seconds = self.config.aichat_session_ttl_minutes * 60
@@ -136,6 +200,10 @@ class ChatHandler:
         ]
         for session_id in expired_session_ids:
             self.clear_history(session_id)
+            lock = self._session_locks.get(session_id)
+            if lock is None or not lock.locked():
+                self._session_locks.pop(session_id, None)
+                self._session_versions.pop(session_id, None)
 
         if expired_session_ids:
             logger.info("Cleaned {} expired AI chat sessions", len(expired_session_ids))
@@ -292,7 +360,12 @@ class ChatHandler:
             logger.warning("AI memory summary skipped because no running event loop is available")
             return
 
-        loop.create_task(self._summarize_memory(memory_scope, recent_turns))
+        create_background_task(
+            self._summarize_memory(memory_scope, recent_turns),
+            name=f"ai-memory-summary:{memory_scope}",
+            key=f"ai-memory-summary:{memory_scope}",
+            graceful=True,
+        )
 
     async def _summarize_memory(self, memory_scope: str, recent_turns: list[dict[str, str]]) -> None:
         if not self.client or not self.config.resolved_ai_model or not self.memory_enabled():

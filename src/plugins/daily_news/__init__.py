@@ -5,6 +5,7 @@ from nonebot import get_bots, get_driver, get_plugin_config, logger, on_regex
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent, MessageSegment
 from nonebot.plugin import PluginMetadata
 from src.common.settings import get_runtime_settings_store
+from src.common.background_tasks import create_background_task
 
 from .config import Config
 from .data_source import DailyNewsError, build_daily_news_image_url, fetch_daily_news_date
@@ -180,7 +181,7 @@ async def start_daily_news_scheduler() -> None:
     if not config.dailynews_enabled:
         return
 
-    asyncio.create_task(_daily_news_scheduler())
+    create_background_task(_daily_news_scheduler(), name="daily-news-scheduler", key="daily-news-scheduler")
 
 
 @today_news.handle()

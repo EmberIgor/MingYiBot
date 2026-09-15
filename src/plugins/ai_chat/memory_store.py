@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from src.common.db.postgres import connect_postgres, run_postgres_migrations, is_postgres, PostgresConnectionSettings
+from src.common.db.postgres_schema import AI_CHAT_UPSERT_RETURNING_ID, AI_CHAT_REPLACE_UPSERT
+
 import hashlib
 import json
 import re
@@ -438,9 +441,12 @@ class MySQLMemoryStore(MemoryStore):
         connect_timeout_seconds: int,
         max_items: int = 20,
         import_path: str | None = None,
+        backend: str = "mysql",
     ) -> None:
+        if backend not in ("mysql", "postgres"):
+            raise MemoryStoreError("Unknown database backend")
         try:
-            self.settings = MySQLConnectionSettings(
+            self.settings = (PostgresConnectionSettings if backend == "postgres" else MySQLConnectionSettings)(
                 host=host.strip(),
                 port=int(port),
                 database=database.strip(),
@@ -460,7 +466,8 @@ class MySQLMemoryStore(MemoryStore):
         self.import_path = Path(import_path) if import_path else None
         self._validate_config()
         self._ensure_schema()
-        self._import_json_memories()
+        if not is_postgres(self.settings):
+            self._import_json_memories()
 
     def list_memories(self, scope: str) -> list[dict[str, str]]:
         try:
@@ -552,7 +559,7 @@ class MySQLMemoryStore(MemoryStore):
                         return self._public_item(row) if row else None
 
                     cursor.execute(
-                        """
+                        AI_CHAT_UPSERT_RETURNING_ID if is_postgres(self.settings) else """
                         INSERT INTO ai_chat_memories
                             (
                                 scope,
@@ -589,7 +596,7 @@ class MySQLMemoryStore(MemoryStore):
                             now,
                         ),
                     )
-                    memory_id = cursor.lastrowid
+                    memory_id = cursor.fetchone()["id"] if is_postgres(self.settings) else cursor.lastrowid
 
                     self._trim_scope(cursor, scope)
                     connection.commit()
@@ -701,7 +708,7 @@ class MySQLMemoryStore(MemoryStore):
                     )
                     for content in normalized_contents:
                         cursor.execute(
-                            """
+                            AI_CHAT_REPLACE_UPSERT if is_postgres(self.settings) else """
                             INSERT INTO ai_chat_memories
                                 (
                                     scope,
@@ -787,15 +794,17 @@ class MySQLMemoryStore(MemoryStore):
             }.items()
             if not str(value).strip()
         ]
+        if is_postgres(self.settings):
+            missing_keys = [key.replace("MYSQL_", "POSTGRES_") for key in missing_keys]
         if missing_keys:
-            raise MemoryStoreError(f"MySQL 配置不完整：{', '.join(missing_keys)}")
+            raise MemoryStoreError(f"数据库配置不完整：{', '.join(missing_keys)}")
 
     def _connect(self):
-        return connect_mysql(self.settings)
+        return connect_postgres(self.settings) if is_postgres(self.settings) else connect_mysql(self.settings)
 
     def _ensure_schema(self) -> None:
         try:
-            run_mysql_migrations(
+            (run_postgres_migrations if is_postgres(self.settings) else run_mysql_migrations)(
                 self.settings,
                 namespace="ai_chat",
                 migrations=AI_CHAT_MEMORY_MIGRATIONS,

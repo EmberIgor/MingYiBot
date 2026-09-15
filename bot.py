@@ -9,6 +9,7 @@ from nonebot.log import logger
 
 from src.common.log_cleanup import LogCleanupConfig, cleanup_old_logs, periodic_log_cleanup
 from src.common.background_tasks import create_background_task, shutdown_background_tasks
+from src.common.db.config import MySQLConfig
 
 
 CONTAINER_ENV_FILE = Path("/app/.env")
@@ -71,6 +72,8 @@ async def start_log_cleanup() -> None:
 load_container_env_file()
 nonebot.init()
 configure_file_logging()
+logger.info("Database backend: {}; version: {}",
+            nonebot.get_plugin_config(MySQLConfig).db_backend, os.getenv("MINGYI_VERSION", "dev"))
 
 driver = nonebot.get_driver()
 driver.register_adapter(OneBotV11Adapter)

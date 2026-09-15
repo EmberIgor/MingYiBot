@@ -340,7 +340,7 @@ MYSQL_PASSWORD=你的MySQL应用密码
 | `AICHAT_MAX_CONCURRENCY` | `5` | 所有会话同时请求 AI 模型的最大数量。 |
 | `AICHAT_REQUEST_TIMEOUT_SECONDS` | `60` | 单轮 AI 请求（包含重试）的最长等待秒数。 |
 | `AICHAT_MEMORY_ENABLED` | `true` | 是否启用 AI 长期记忆。 |
-| `AICHAT_MEMORY_BACKEND` | `mysql` | 长期记忆存储后端，可选 `mysql` 或 `json`；默认使用 MySQL。 |
+| `AICHAT_MEMORY_BACKEND` | `auto` | 默认跟随 `DB_BACKEND`；也可显式选择 `mysql`、`postgres` 或 `json`。 |
 | `AICHAT_MEMORY_PATH` | `data/ai_chat_memories.json` | JSON 记忆文件路径。MySQL 后端首次启动时会从这里导入旧记忆，之后保留为回滚备份。 |
 | `AICHAT_MEMORY_MAX_ITEMS` | `20` | 每个用户最多保留的长期记忆条数。 |
 | `AICHAT_MEMORY_SUMMARY_INTERVAL` | `3` | 每个用户每多少轮成功对话触发一次后台自动总结；小于等于 0 时不自动总结。 |
@@ -471,3 +471,9 @@ MYSQL_PASSWORD=你的MySQL应用密码
 ```
 
 后续插件建议按功能放到 `src/plugins/<插件名>/__init__.py`。
+
+## PostgreSQL 支持与迁移
+
+`DB_BACKEND=mysql` 保持原有行为，`DB_BACKEND=postgres` 使用 Psycopg 3 连接 PostgreSQL。
+PG 使用 `POSTGRES_*` 配置；切换前必须完成历史数据导入及校验。
+详细配置、全量迁移工具、Mac/NAS 切换与回退步骤见 [PostgreSQL 迁移说明](docs/postgres-migration.md)。

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from src.common.db.postgres import connect_postgres, run_postgres_migrations, is_postgres
+from src.common.db.postgres_schema import MESSAGE_ARCHIVE_UPSERT
+
 import asyncio
 import hashlib
 import threading
@@ -78,7 +81,7 @@ class MessageArchiveStore:
             if self._schema_ready:
                 return
             try:
-                run_mysql_migrations(
+                (run_postgres_migrations if is_postgres(self.config) else run_mysql_migrations)(
                     self.config,
                     namespace="message_archive",
                     migrations=MESSAGE_ARCHIVE_MIGRATIONS,
@@ -98,10 +101,10 @@ class MessageArchiveStore:
             return
         try:
             self.ensure_schema()
-            with connect_mysql(self.config) as connection:
+            with (connect_postgres(self.config) if is_postgres(self.config) else connect_mysql(self.config)) as connection:
                 with connection.cursor() as cursor:
                     cursor.executemany(
-                        """
+                        MESSAGE_ARCHIVE_UPSERT if is_postgres(self.config) else """
                         INSERT INTO group_message_records
                             (
                                 group_id,
@@ -134,7 +137,7 @@ class MessageArchiveStore:
                             message.message_id,
                             message.bot_id,
                             message.sender_nickname,
-                            message.sender_card,
+                            message.sender_card.encode("utf-8") if is_postgres(self.config) else message.sender_card,
                             message.message_type,
                             message.sub_type,
                             message.message_text,
@@ -157,7 +160,7 @@ class MessageArchiveStore:
     def prune_group_before(self, group_id: int | str, before: datetime) -> int:
         try:
             self.ensure_schema()
-            with connect_mysql(self.config) as connection:
+            with (connect_postgres(self.config) if is_postgres(self.config) else connect_mysql(self.config)) as connection:
                 with connection.cursor() as cursor:
                     cursor.execute(
                         """
@@ -178,7 +181,7 @@ class MessageArchiveStore:
     def list_archived_group_ids(self) -> list[str]:
         try:
             self.ensure_schema()
-            with connect_mysql(self.config) as connection:
+            with (connect_postgres(self.config) if is_postgres(self.config) else connect_mysql(self.config)) as connection:
                 with connection.cursor() as cursor:
                     cursor.execute("SELECT DISTINCT group_id FROM group_message_records")
                     return [str(row[0]) for row in cursor.fetchall()]

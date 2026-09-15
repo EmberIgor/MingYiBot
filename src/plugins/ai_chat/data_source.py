@@ -615,26 +615,30 @@ class ChatHandler:
             return None
 
         backend = self.config.aichat_memory_backend.strip().lower()
+        if backend in ("auto", ""):
+            backend = self.config.db_backend
         if backend == "json":
             return MemoryStore(self.config.aichat_memory_path, self.config.aichat_memory_max_items)
-        if backend != "mysql":
+        if backend not in ("mysql", "postgres"):
             logger.warning("Unknown AI memory backend: {}", self.config.aichat_memory_backend)
-            return UnavailableMemoryStore("长期记忆数据库暂不可用，请检查 MySQL 配置。")
+            return UnavailableMemoryStore("长期记忆数据库暂不可用，请检查数据库配置。")
 
+        prefix = backend
         try:
             return MySQLMemoryStore(
-                host=self.config.mysql_host,
-                port=self.config.mysql_port,
-                database=self.config.mysql_database,
-                user=self.config.mysql_user,
-                password=self.config.mysql_password,
-                connect_timeout_seconds=self.config.mysql_connect_timeout_seconds,
+                backend=backend,
+                host=getattr(self.config, f"{prefix}_host"),
+                port=getattr(self.config, f"{prefix}_port"),
+                database=getattr(self.config, f"{prefix}_database"),
+                user=getattr(self.config, f"{prefix}_user"),
+                password=getattr(self.config, f"{prefix}_password"),
+                connect_timeout_seconds=getattr(self.config, f"{prefix}_connect_timeout_seconds"),
                 max_items=self.config.aichat_memory_max_items,
                 import_path=self.config.aichat_memory_path,
             )
         except MemoryStoreError as exc:
-            logger.warning("AI memory MySQL backend unavailable: {}", exc)
-            return UnavailableMemoryStore("长期记忆数据库暂不可用，请检查 MySQL 配置。")
+            logger.warning("AI memory database backend unavailable: {}", exc)
+            return UnavailableMemoryStore("长期记忆数据库暂不可用，请检查数据库配置。")
 
     def _touch(self, session_id: str) -> None:
         self.last_active_at[session_id] = time.time()

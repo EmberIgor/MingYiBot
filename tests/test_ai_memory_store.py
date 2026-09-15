@@ -6,6 +6,7 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import nonebot
 
@@ -56,6 +57,16 @@ class ClientChatHandler(ChatHandler):
 
 
 class AIMemoryStoreTest(unittest.TestCase):
+    def test_auto_backend_uses_postgres_and_explicit_mysql_is_preserved(self) -> None:
+        handler = ChatHandler.__new__(ChatHandler)
+        for backend, expected in (("auto", "postgres"), ("mysql", "mysql")):
+            handler.config = Config(db_backend="postgres", aichat_memory_backend=backend,
+                                    postgres_host="pg", mysql_host="my")
+            with patch("src.plugins.ai_chat.data_source.MySQLMemoryStore") as factory:
+                handler._create_memory_store()
+                self.assertEqual(factory.call_args.kwargs["backend"], expected)
+                self.assertEqual(factory.call_args.kwargs["host"], "pg" if expected == "postgres" else "my")
+
     def test_default_mysql_backend_is_unavailable_without_config(self) -> None:
         handler = ChatHandler(Config(), StubRoleStore())
 
@@ -241,6 +252,7 @@ class AIMemoryStoreTest(unittest.TestCase):
 
     def test_mysql_add_memory_uses_upsert_and_metadata_defaults(self) -> None:
         store = MySQLMemoryStore.__new__(MySQLMemoryStore)
+        store.settings = MySQLConfig()
         store.max_items = 20
         connection = FakeConnection()
         store._connect = lambda: connection

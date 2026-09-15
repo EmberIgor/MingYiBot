@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from src.common.db.postgres import connect_postgres, run_postgres_migrations, is_postgres
+from src.common.db.postgres_schema import RUNTIME_SETTINGS_UPSERT
+
 import asyncio
 import json
 import time
@@ -199,10 +202,10 @@ class RuntimeSettingsStore:
 
         try:
             self._ensure_schema()
-            with connect_mysql(self.config) as connection:
+            with (connect_postgres(self.config) if is_postgres(self.config) else connect_mysql(self.config)) as connection:
                 with connection.cursor() as cursor:
                     cursor.execute(
-                        """
+                        RUNTIME_SETTINGS_UPSERT if is_postgres(self.config) else """
                         INSERT INTO runtime_settings
                             (scope_type, scope_id, namespace, setting_key, value_json, updated_by)
                         VALUES (%s, %s, %s, %s, %s, %s)
@@ -242,7 +245,7 @@ class RuntimeSettingsStore:
 
         try:
             self._ensure_schema()
-            with connect_mysql(self.config) as connection:
+            with (connect_postgres(self.config) if is_postgres(self.config) else connect_mysql(self.config)) as connection:
                 with connection.cursor() as cursor:
                     cursor.execute(
                         """
@@ -274,7 +277,7 @@ class RuntimeSettingsStore:
         normalized_scope_type, normalized_scope_id = self._normalize_scope(scope_type, scope_id)
         try:
             self._ensure_schema()
-            with connect_mysql(self.config) as connection:
+            with (connect_postgres(self.config) if is_postgres(self.config) else connect_mysql(self.config)) as connection:
                 with connection.cursor() as cursor:
                     cursor.execute(
                         """
@@ -305,7 +308,7 @@ class RuntimeSettingsStore:
         scopes: list[tuple[ScopeType, str]],
     ) -> Any | None:
         self._ensure_schema()
-        with connect_mysql(self.config) as connection:
+        with (connect_postgres(self.config) if is_postgres(self.config) else connect_mysql(self.config)) as connection:
             with connection.cursor() as cursor:
                 for scope_type, scope_id in scopes:
                     cursor.execute(
@@ -329,7 +332,7 @@ class RuntimeSettingsStore:
         if self._schema_ready:
             return
         try:
-            run_mysql_migrations(
+            (run_postgres_migrations if is_postgres(self.config) else run_mysql_migrations)(
                 self.config,
                 namespace="runtime_settings",
                 migrations=RUNTIME_SETTINGS_MIGRATIONS,

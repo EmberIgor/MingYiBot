@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 .venv/
 .env
+migration-private/
 
 data/*
 logs/*

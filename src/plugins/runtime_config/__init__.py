@@ -8,7 +8,6 @@ from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageEvent, Message
 from nonebot.plugin import PluginMetadata
 from src.common.settings import SettingsStoreError, get_runtime_settings_store
 from src.plugins.ai_chat.config import Config as AIChatConfig
-from src.plugins.ai_chat.role_store import RoleStore
 from src.plugins.daily_news.config import Config as DailyNewsConfig
 from src.plugins.message_archive.config import Config as MessageArchiveConfig
 from src.plugins.repeater.config import Config as RepeaterConfig
@@ -23,7 +22,6 @@ __plugin_meta__ = PluginMetadata(
         ".配置 每日新闻 开|关\n"
         ".配置 火烧云城市 上海\n"
         ".配置 AI联网 开|关\n"
-        ".配置 默认角色 jarvis\n"
         ".配置 复读阈值 3\n"
         ".配置 群记录 开|关\n"
         ".配置 重置 火烧云城市"
@@ -45,7 +43,6 @@ RESET_ALIASES: dict[str, tuple[str, str]] = {
     "火烧云城市": ("sunset", "default_city"),
     "ai联网": ("ai_chat", "web_search"),
     "AI联网": ("ai_chat", "web_search"),
-    "默认角色": ("ai_chat", "default_role"),
     "复读阈值": ("repeater", "threshold"),
     "群记录": ("message_archive", "enabled"),
     "消息记录": ("message_archive", "enabled"),
@@ -169,7 +166,7 @@ async def _apply_scope_setting(
             True,
             updated_by=updated_by,
         )
-        return f"已开启{scope_label} AI 联网。"
+        return f"已开启{scope_label}备用 AI 联网。"
 
     if command in {"AI联网 关", "AI联网 关闭", "ai联网 关", "ai联网 关闭"}:
         _require_allowed(("ai_chat", "web_search"), allowed_settings, scope_label)
@@ -181,24 +178,7 @@ async def _apply_scope_setting(
             False,
             updated_by=updated_by,
         )
-        return f"已关闭{scope_label} AI 联网。"
-
-    match = re.fullmatch(r"默认角色\s+(\S+)", command)
-    if match:
-        _require_allowed(("ai_chat", "default_role"), allowed_settings, scope_label)
-        role_name = match.group(1).strip()
-        role_store = RoleStore(ai_chat_config.aichat_roles_path, ai_chat_config.aichat_default_role)
-        if not role_store.has_role(role_name):
-            return f"没有找到角色：{role_name}\n可用角色：{'、'.join(role_store.list_roles())}"
-        await runtime_settings.set_value_async(
-            scope_type,
-            scope_id,
-            "ai_chat",
-            "default_role",
-            role_name,
-            updated_by=updated_by,
-        )
-        return f"已将{scope_label}默认 AI 角色设为：{role_name}"
+        return f"已关闭{scope_label}备用 AI 联网。"
 
     match = re.fullmatch(r"复读阈值\s+(\d+)", command)
     if match:
@@ -288,12 +268,6 @@ async def _format_group_settings(group_id: int) -> str:
             ai_chat_config.aichat_web_search,
             group_id=group_id,
         )
-        ai_default_role = await runtime_settings.get_str_async(
-            "ai_chat",
-            "default_role",
-            ai_chat_config.aichat_default_role,
-            group_id=group_id,
-        )
         repeater_threshold = await runtime_settings.get_int_async(
             "repeater",
             "threshold",
@@ -318,8 +292,7 @@ async def _format_group_settings(group_id: int) -> str:
     lines = [f"当前群运行时配置（{group_id}）："]
     lines.append(f"每日新闻定时推送：{_on_off(daily_news_enabled)}{_source(stored_values, 'daily_news', 'enabled')}")
     lines.append(f"火烧云城市：{sunset_city}{_source(stored_values, 'sunset', 'default_city')}")
-    lines.append(f"AI联网：{_on_off(ai_web_search)}{_source(stored_values, 'ai_chat', 'web_search')}")
-    lines.append(f"默认角色：{ai_default_role}{_source(stored_values, 'ai_chat', 'default_role')}")
+    lines.append(f"备用AI联网：{_on_off(ai_web_search)}{_source(stored_values, 'ai_chat', 'web_search')}")
     repeater_text = "关闭" if repeater_threshold < 2 else str(repeater_threshold)
     lines.append(f"复读阈值：{repeater_text}{_source(stored_values, 'repeater', 'threshold')}")
     lines.append(
@@ -357,11 +330,6 @@ async def _format_global_settings() -> str:
         "web_search",
         ai_chat_config.aichat_web_search,
     )
-    ai_default_role = await runtime_settings.get_str_async(
-        "ai_chat",
-        "default_role",
-        ai_chat_config.aichat_default_role,
-    )
     repeater_threshold = await runtime_settings.get_int_async(
         "repeater",
         "threshold",
@@ -381,8 +349,7 @@ async def _format_global_settings() -> str:
     lines = ["全局运行时配置："]
     lines.append(f"每日新闻定时推送：{_on_off(daily_news_enabled)}{_source(stored_values, 'daily_news', 'enabled', '全局配置')}")
     lines.append(f"火烧云城市：{sunset_city}{_source(stored_values, 'sunset', 'default_city', '全局配置')}")
-    lines.append(f"AI联网：{_on_off(ai_web_search)}{_source(stored_values, 'ai_chat', 'web_search', '全局配置')}")
-    lines.append(f"默认角色：{ai_default_role}{_source(stored_values, 'ai_chat', 'default_role', '全局配置')}")
+    lines.append(f"备用AI联网：{_on_off(ai_web_search)}{_source(stored_values, 'ai_chat', 'web_search', '全局配置')}")
     repeater_text = "关闭" if repeater_threshold < 2 else str(repeater_threshold)
     lines.append(f"复读阈值：{repeater_text}{_source(stored_values, 'repeater', 'threshold', '全局配置')}")
     lines.append(
@@ -435,7 +402,6 @@ def _help_text(*, is_group: bool) -> str:
             ".配置 每日新闻 开/关\n"
             ".配置 火烧云城市 上海\n"
             ".配置 AI联网 开/关\n"
-            ".配置 默认角色 jarvis\n"
             ".配置 复读阈值 3（小于 2 为关闭）\n"
             ".配置 群记录 开/关\n"
             ".配置 群记录保留 90\n"
@@ -448,7 +414,6 @@ def _help_text(*, is_group: bool) -> str:
         ".配置 每日新闻 开/关\n"
         ".配置 火烧云城市 上海\n"
         ".配置 AI联网 开/关\n"
-        ".配置 默认角色 jarvis\n"
         ".配置 复读阈值 3（小于 2 为关闭）\n"
         ".配置 群记录 开/关\n"
         ".配置 群记录保留 90\n"

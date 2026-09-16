@@ -28,17 +28,17 @@ class RuntimeSettingsStoreTest(unittest.TestCase):
 
     def test_group_and_user_overrides_take_precedence(self) -> None:
         store = InMemorySettingsStore()
-        store.values[("global", "", "ai_chat", "default_role")] = json.dumps("assistant")
-        store.values[("group", "100", "ai_chat", "default_role")] = json.dumps("creative")
-        store.values[("user", "200", "ai_chat", "default_role")] = json.dumps("jarvis")
+        store.values[("global", "", "ai_chat", "web_search")] = json.dumps(False)
+        store.values[("group", "100", "ai_chat", "web_search")] = json.dumps(True)
+        store.values[("user", "200", "ai_chat", "web_search")] = json.dumps(False)
 
         self.assertEqual(
-            store.get_str("ai_chat", "default_role", "default", group_id=100),
-            "creative",
+            store.get_bool("ai_chat", "web_search", False, group_id=100),
+            True,
         )
         self.assertEqual(
-            store.get_str("ai_chat", "default_role", "default", group_id=100, user_id=200),
-            "jarvis",
+            store.get_bool("ai_chat", "web_search", True, group_id=100, user_id=200),
+            False,
         )
 
     def test_unconfigured_setting_returns_default(self) -> None:

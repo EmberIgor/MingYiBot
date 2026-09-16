@@ -62,7 +62,6 @@ SETTING_DEFINITIONS: dict[tuple[str, str], SettingDefinition] = {
     ("daily_news", "enabled"): SettingDefinition("daily_news", "enabled", "bool", "每日新闻"),
     ("sunset", "default_city"): SettingDefinition("sunset", "default_city", "str", "火烧云城市"),
     ("ai_chat", "web_search"): SettingDefinition("ai_chat", "web_search", "bool", "AI联网"),
-    ("ai_chat", "default_role"): SettingDefinition("ai_chat", "default_role", "str", "默认角色"),
     ("repeater", "threshold"): SettingDefinition(
         "repeater",
         "threshold",

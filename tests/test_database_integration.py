@@ -81,7 +81,7 @@ class DatabaseIntegrationTest(unittest.TestCase):
                 settings.set_value("group", 100, "daily_news", "enabled", False, updated_by=200)
                 self.assertFalse(settings.get_bool("daily_news", "enabled", True, group_id=100))
                 self.assertTrue(settings.delete_value("group", 100, "daily_news", "enabled"))
-                settings.set_value("global", None, "ai_chat", "default_role", "测试角色", updated_by=200)
+                settings.set_value("global", None, "ai_chat", "web_search", True, updated_by=200)
                 connect = connect_postgres if backend == "postgres" else connect_mysql
                 with connect(self.config) as connection:
                     with connection.cursor() as cursor:

@@ -4,6 +4,7 @@ import asyncio
 import unittest
 from typing import Any
 
+import httpx
 import nonebot
 
 try:
@@ -12,101 +13,95 @@ except ValueError:
     nonebot.init()
 
 from src.plugins.ai_chat.config import Config
-from src.plugins.ai_chat.data_source import ChatHandler
-
-
-class StubRoleStore:
-    def get_prompt(self, role_name: str) -> str:
-        return f"prompt:{role_name}"
-
-
-class Response:
-    def __init__(self, text: str) -> None:
-        self.output_text = text
+from src.plugins.ai_chat.data_source import ChatHandler, HERMES_UNCERTAIN_ERROR
 
 
 class ControlledHandler(ChatHandler):
     def __init__(self, config: Config) -> None:
-        self.calls: list[list[dict[str, str]]] = []
+        self.calls: list[tuple[str, str]] = []
+        self.fallback_calls: list[list[dict[str, str]]] = []
         self.gates: dict[str, asyncio.Event] = {}
-        self.active = 0
-        self.max_active = 0
-        super().__init__(config, StubRoleStore())
+        self.hermes_error: Exception | None = None
+        super().__init__(config)
+        self.fallback_client = object()
 
-    def _create_client(self) -> object:
-        return object()
+    async def _request_hermes(
+        self, message: str, conversation_id: str, *_: Any
+    ) -> dict[str, Any]:
+        self.calls.append((conversation_id, message))
+        gate = self.gates.get(message)
+        if gate:
+            await gate.wait()
+        if self.hermes_error:
+            raise self.hermes_error
+        return {"output_text": f"hermes:{message}"}
 
-    async def _request_ai(self, _prompt: str, history: list[dict[str, str]], *_: Any, **__: Any) -> Response:
-        snapshot = [item.copy() for item in history]
-        self.calls.append(snapshot)
-        message = history[-1]["content"]
-        self.active += 1
-        self.max_active = max(self.max_active, self.active)
-        try:
-            gate = self.gates.get(message)
-            if gate:
-                await gate.wait()
-            if message == "fail":
-                raise ValueError("failed")
-            if message == "slow":
-                await asyncio.sleep(1)
-            return Response(f"reply:{message}")
-        finally:
-            self.active -= 1
+    async def _request_fallback(
+        self, history: list[dict[str, str]], *_: Any
+    ) -> dict[str, str]:
+        self.fallback_calls.append(history)
+        return {"output_text": f"fallback:{history[-1]['content']}"}
+
+
+def ask(handler: ChatHandler, message: str, conversation_id: str = "qq:u1") -> Any:
+    return handler.ask(
+        message,
+        conversation_id,
+        user_id=1,
+        display_name="甲",
+        group_id=100,
+    )
 
 
 class AIChatConcurrencyTest(unittest.IsolatedAsyncioTestCase):
-    def make_handler(self, **kwargs: Any) -> ControlledHandler:
-        return ControlledHandler(Config(aichat_key="key", aichat_model="model", aichat_memory_enabled=False, **kwargs))
-
-    async def test_same_session_is_serialized_and_ordered(self) -> None:
-        handler = self.make_handler()
+    async def test_same_session_is_serialized_without_resending_history(self) -> None:
+        handler = ControlledHandler(Config(hermes_baseurl="http://hermes/v1", hermes_key="key"))
         handler.gates["first"] = asyncio.Event()
-        first = asyncio.create_task(handler.ask("first", "s", "default"))
+        first = asyncio.create_task(ask(handler, "first"))
         await asyncio.sleep(0)
-        second = asyncio.create_task(handler.ask("second", "s", "default"))
+        second = asyncio.create_task(ask(handler, "second"))
         await asyncio.sleep(0)
-        self.assertEqual(len(handler.calls), 1)
+        self.assertEqual(handler.calls, [("qq:u1", "first")])
         handler.gates["first"].set()
-        self.assertEqual(await asyncio.gather(first, second), ["reply:first", "reply:second"])
-        self.assertEqual([item["content"] for item in handler.histories["s"][1:]], ["first", "reply:first", "second", "reply:second"])
+        self.assertEqual(await asyncio.gather(first, second), ["hermes:first", "hermes:second"])
+        self.assertEqual(handler.calls, [("qq:u1", "first"), ("qq:u1", "second")])
+        self.assertEqual(handler.fallback_histories, {})
 
-    async def test_failure_removes_only_its_own_message(self) -> None:
-        handler = self.make_handler()
-        first, second = await asyncio.gather(
-            handler.ask("fail", "s", "default"),
-            handler.ask("ok", "s", "default"),
+    async def test_connect_failure_uses_only_short_term_fallback_history(self) -> None:
+        handler = ControlledHandler(
+            Config(hermes_baseurl="http://hermes/v1", hermes_key="key", aichat_model="fallback")
         )
-        self.assertIn("失败", first)
-        self.assertEqual(second, "reply:ok")
-        self.assertEqual([item["content"] for item in handler.histories["s"][1:]], ["ok", "reply:ok"])
+        handler.hermes_error = httpx.ConnectError("offline")
+        self.assertEqual(await ask(handler, "first"), "fallback:first")
+        self.assertEqual(await ask(handler, "second"), "fallback:second")
+        self.assertEqual(
+            [item["content"] for item in handler.fallback_calls[-1]],
+            ["first", "fallback:first", "second"],
+        )
 
-    async def test_reset_during_request_prevents_old_response_writeback(self) -> None:
-        handler = self.make_handler()
-        handler.gates["first"] = asyncio.Event()
-        request = asyncio.create_task(handler.ask("first", "s", "default"))
-        await asyncio.sleep(0)
-        handler.clear_history("s")
-        handler.gates["first"].set()
-        self.assertEqual(await request, "reply:first")
-        self.assertNotIn("s", handler.histories)
+    async def test_ambiguous_timeout_never_calls_fallback(self) -> None:
+        handler = ControlledHandler(
+            Config(hermes_baseurl="http://hermes/v1", hermes_key="key", aichat_model="fallback")
+        )
+        handler.hermes_error = httpx.ReadTimeout("uncertain")
+        self.assertEqual(await ask(handler, "hello"), HERMES_UNCERTAIN_ERROR)
+        self.assertEqual(handler.fallback_calls, [])
 
-    async def test_global_concurrency_limit_applies_across_sessions(self) -> None:
-        handler = self.make_handler(aichat_max_concurrency=2)
-        for value in ("a", "b", "c"):
-            handler.gates[value] = asyncio.Event()
-        tasks = [asyncio.create_task(handler.ask(value, value, "default")) for value in ("a", "b", "c")]
-        await asyncio.sleep(0.05)
-        self.assertEqual(handler.max_active, 2)
-        for gate in handler.gates.values():
-            gate.set()
-        await asyncio.gather(*tasks)
+    async def test_hermes_recovery_clears_stale_fallback_context(self) -> None:
+        handler = ControlledHandler(
+            Config(hermes_baseurl="http://hermes/v1", hermes_key="key", aichat_model="fallback")
+        )
+        handler.hermes_error = httpx.ConnectError("offline")
+        self.assertEqual(await ask(handler, "offline turn"), "fallback:offline turn")
+        self.assertIn("qq:u1", handler.fallback_histories)
+        handler.hermes_error = None
+        self.assertEqual(await ask(handler, "online turn"), "hermes:online turn")
+        self.assertNotIn("qq:u1", handler.fallback_histories)
 
-    async def test_timeout_rolls_back_user_message(self) -> None:
-        handler = self.make_handler(aichat_request_timeout_seconds=0.01)
-        response = await handler.ask("slow", "s", "default")
-        self.assertIn("失败", response)
-        self.assertEqual(handler.histories["s"], [{"role": "system", "content": "prompt:default"}])
+    async def test_without_hermes_fallback_works_independently(self) -> None:
+        handler = ControlledHandler(Config(aichat_model="fallback"))
+        self.assertEqual(await ask(handler, "hello"), "fallback:hello")
+        self.assertEqual(handler.calls, [])
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
 # MySQL → PostgreSQL 全量迁移
 
+> 历史迁移记录。Watchtower 已退役，文内相关启停步骤仅保留历史背景；当前部署以 README 的 Mac 本地流程为准。
+
 ## 发布与配置
 
 `DB_BACKEND` 可选 `mysql` / `postgres`，默认 `mysql`。现有 `MYSQL_*` 配置继续有效。

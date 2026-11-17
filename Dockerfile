@@ -2,14 +2,14 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV TZ=Asia/Hong_Kong
+ENV TZ=Asia/Shanghai
 ARG MINGYI_VERSION=dev
 ENV MINGYI_VERSION=${MINGYI_VERSION}
 
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends tzdata \
+    && apt-get install -y --no-install-recommends tzdata nodejs ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

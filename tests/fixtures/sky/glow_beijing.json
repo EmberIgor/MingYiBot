@@ -1,0 +1,523 @@
+{
+  "version": "5e32b5768e0c7eb3eda7a6e9f40acf2d2d83f0df1de301d13030a74e6c58a3a2",
+  "date": "2026-11-17",
+  "prediction": {
+    "spot": "beijing",
+    "spotName": "北京景山 / 故宫",
+    "location": "北京 · 东城",
+    "date": "2026-11-17",
+    "businessDate": "2026-11-17",
+    "quality": 54,
+    "probability": 49,
+    "qualityPotential": {
+      "value": 54,
+      "valueStatus": "evaluated"
+    },
+    "occurrenceEstimate": {
+      "value": 49,
+      "valueStatus": "evaluated",
+      "calibrated": false
+    },
+    "metrics": {
+      "cloudHigh": 41,
+      "cloudMid": 59.86666666666667,
+      "cloudLow": 5.733333333333334,
+      "visibilityKm": 21.18,
+      "windowTransparency": 93.8
+    },
+    "weather": {
+      "label": "阴",
+      "kind": "overcast",
+      "weatherCode": 2,
+      "weatherText": "阴",
+      "source": "open-meteo",
+      "precipitationRateMmH": 0,
+      "precipitationProbability": null,
+      "isPrecipitating": false,
+      "blocksSunset": false
+    },
+    "qualityValidUntil": "2026-11-17T04:17:35.380Z",
+    "probabilityValidUntil": "2026-11-17T04:17:26.837Z",
+    "actionValidUntil": "2026-11-17T04:17:26.837Z",
+    "actionState": "current",
+    "status": "evaluated",
+    "freshness": {
+      "status": "valid",
+      "quality": "valid",
+      "probability": "valid",
+      "fields": {
+        "cloudHigh": "valid",
+        "cloudMid": "valid",
+        "cloudLow": "valid",
+        "visibility": "valid",
+        "humidity": "valid",
+        "lowLevelHumidity": "valid",
+        "humidity700": "valid",
+        "humidity250": "valid",
+        "windDirection": "valid",
+        "windSpeed": "valid",
+        "windSpeed700": "valid",
+        "precipitation": "valid",
+        "weatherCode": "valid",
+        "aod550": "expired",
+        "weatherText": "valid",
+        "remoteLowCloud": "valid",
+        "remoteHumidity850": "unknown",
+        "airQuality": "unknown"
+      }
+    },
+    "sunTimes": {
+      "sunrise": "07:01",
+      "sunset": "16:56",
+      "dayLength": 595
+    },
+    "fetchedAt": "2026-11-17T02:17:47.926Z",
+    "generatedAt": "2026-11-17T02:17:47.926Z",
+    "cloudglowTransitions": [
+      {
+        "effectiveAt": "2026-11-17T04:17:26.837Z",
+        "quality": 38,
+        "probability": null,
+        "qualityPotential": {
+          "value": 38,
+          "valueStatus": "evaluated"
+        },
+        "occurrenceEstimate": {
+          "value": null,
+          "valueStatus": "insufficient_data",
+          "calibrated": false
+        },
+        "qualityValidUntil": "2026-11-17T04:17:35.380Z",
+        "probabilityValidUntil": "2026-11-17T04:17:26.837Z",
+        "actionState": "unavailable",
+        "actionValidUntil": "2026-11-17T04:17:34.479Z",
+        "status": "insufficient_data",
+        "weather": {
+          "label": "阴",
+          "kind": "overcast",
+          "weatherCode": 2,
+          "weatherText": "阴",
+          "source": "open-meteo",
+          "precipitationRateMmH": 0,
+          "precipitationProbability": null,
+          "isPrecipitating": false,
+          "blocksSunset": false
+        },
+        "metrics": {
+          "cloudHigh": 34.36666666666667,
+          "cloudMid": 17.666666666666664,
+          "cloudLow": 0.8666666666666667,
+          "visibilityKm": 18.5,
+          "windowTransparency": null
+        }
+      },
+      {
+        "effectiveAt": "2026-11-17T04:17:34.479Z",
+        "quality": 38,
+        "probability": null,
+        "qualityPotential": {
+          "value": 38,
+          "valueStatus": "evaluated"
+        },
+        "occurrenceEstimate": {
+          "value": null,
+          "valueStatus": "insufficient_data",
+          "calibrated": false
+        },
+        "qualityValidUntil": "2026-11-17T04:17:35.380Z",
+        "probabilityValidUntil": "2026-11-17T04:17:26.837Z",
+        "actionState": "unavailable",
+        "actionValidUntil": "2026-11-17T04:17:35.380Z",
+        "status": "insufficient_data",
+        "weather": {
+          "label": "多云",
+          "kind": "cloudy",
+          "weatherCode": 2,
+          "weatherText": null,
+          "source": "open-meteo",
+          "precipitationRateMmH": 0,
+          "precipitationProbability": null,
+          "isPrecipitating": false,
+          "blocksSunset": false
+        },
+        "metrics": {
+          "cloudHigh": 34.36666666666667,
+          "cloudMid": 17.666666666666664,
+          "cloudLow": 0.8666666666666667,
+          "visibilityKm": 18.5,
+          "windowTransparency": null
+        }
+      },
+      {
+        "effectiveAt": "2026-11-17T04:17:35.380Z",
+        "quality": null,
+        "probability": null,
+        "qualityPotential": {
+          "value": null,
+          "valueStatus": "insufficient_data"
+        },
+        "occurrenceEstimate": {
+          "value": null,
+          "valueStatus": "insufficient_data",
+          "calibrated": false
+        },
+        "qualityValidUntil": "2026-11-17T04:17:35.380Z",
+        "probabilityValidUntil": "2026-11-17T04:17:26.837Z",
+        "actionState": "unavailable",
+        "actionValidUntil": "2026-11-17T06:11:00.000Z",
+        "status": "insufficient_data",
+        "weather": {
+          "label": "天气待更新",
+          "kind": "unknown",
+          "weatherCode": null,
+          "weatherText": null,
+          "source": "open-meteo",
+          "precipitationRateMmH": null,
+          "precipitationProbability": null,
+          "isPrecipitating": false,
+          "blocksSunset": false
+        },
+        "metrics": {
+          "cloudHigh": null,
+          "cloudMid": null,
+          "cloudLow": null,
+          "visibilityKm": null,
+          "windowTransparency": null
+        }
+      },
+      {
+        "effectiveAt": "2026-11-17T06:11:00.000Z",
+        "quality": null,
+        "probability": null,
+        "qualityPotential": {
+          "value": null,
+          "valueStatus": "insufficient_data"
+        },
+        "occurrenceEstimate": {
+          "value": null,
+          "valueStatus": "insufficient_data",
+          "calibrated": false
+        },
+        "qualityValidUntil": "2026-11-17T04:17:35.380Z",
+        "probabilityValidUntil": "2026-11-17T04:17:26.837Z",
+        "actionState": "unavailable",
+        "actionValidUntil": "2026-11-17T06:41:00.000Z",
+        "status": "insufficient_data",
+        "weather": {
+          "label": "天气待更新",
+          "kind": "unknown",
+          "weatherCode": null,
+          "weatherText": null,
+          "source": "open-meteo",
+          "precipitationRateMmH": null,
+          "precipitationProbability": null,
+          "isPrecipitating": false,
+          "blocksSunset": false
+        },
+        "metrics": {
+          "cloudHigh": null,
+          "cloudMid": null,
+          "cloudLow": null,
+          "visibilityKm": null,
+          "windowTransparency": null
+        }
+      },
+      {
+        "effectiveAt": "2026-11-17T06:41:00.000Z",
+        "quality": null,
+        "probability": null,
+        "qualityPotential": {
+          "value": null,
+          "valueStatus": "insufficient_data"
+        },
+        "occurrenceEstimate": {
+          "value": null,
+          "valueStatus": "insufficient_data",
+          "calibrated": false
+        },
+        "qualityValidUntil": "2026-11-17T04:17:35.380Z",
+        "probabilityValidUntil": "2026-11-17T04:17:26.837Z",
+        "actionState": "unavailable",
+        "actionValidUntil": "2026-11-17T07:11:00.000Z",
+        "status": "insufficient_data",
+        "weather": {
+          "label": "天气待更新",
+          "kind": "unknown",
+          "weatherCode": null,
+          "weatherText": null,
+          "source": "open-meteo",
+          "precipitationRateMmH": null,
+          "precipitationProbability": null,
+          "isPrecipitating": false,
+          "blocksSunset": false
+        },
+        "metrics": {
+          "cloudHigh": null,
+          "cloudMid": null,
+          "cloudLow": null,
+          "visibilityKm": null,
+          "windowTransparency": null
+        }
+      },
+      {
+        "effectiveAt": "2026-11-17T07:11:00.000Z",
+        "quality": null,
+        "probability": null,
+        "qualityPotential": {
+          "value": null,
+          "valueStatus": "insufficient_data"
+        },
+        "occurrenceEstimate": {
+          "value": null,
+          "valueStatus": "insufficient_data",
+          "calibrated": false
+        },
+        "qualityValidUntil": "2026-11-17T04:17:35.380Z",
+        "probabilityValidUntil": "2026-11-17T04:17:26.837Z",
+        "actionState": "unavailable",
+        "actionValidUntil": "2026-11-17T07:41:00.000Z",
+        "status": "insufficient_data",
+        "weather": {
+          "label": "天气待更新",
+          "kind": "unknown",
+          "weatherCode": null,
+          "weatherText": null,
+          "source": "open-meteo",
+          "precipitationRateMmH": null,
+          "precipitationProbability": null,
+          "isPrecipitating": false,
+          "blocksSunset": false
+        },
+        "metrics": {
+          "cloudHigh": null,
+          "cloudMid": null,
+          "cloudLow": null,
+          "visibilityKm": null,
+          "windowTransparency": null
+        }
+      },
+      {
+        "effectiveAt": "2026-11-17T07:41:00.000Z",
+        "quality": null,
+        "probability": null,
+        "qualityPotential": {
+          "value": null,
+          "valueStatus": "insufficient_data"
+        },
+        "occurrenceEstimate": {
+          "value": null,
+          "valueStatus": "insufficient_data",
+          "calibrated": false
+        },
+        "qualityValidUntil": "2026-11-17T04:17:35.380Z",
+        "probabilityValidUntil": "2026-11-17T04:17:26.837Z",
+        "actionState": "unavailable",
+        "actionValidUntil": "2026-11-17T08:11:00.000Z",
+        "status": "insufficient_data",
+        "weather": {
+          "label": "天气待更新",
+          "kind": "unknown",
+          "weatherCode": null,
+          "weatherText": null,
+          "source": "open-meteo",
+          "precipitationRateMmH": null,
+          "precipitationProbability": null,
+          "isPrecipitating": false,
+          "blocksSunset": false
+        },
+        "metrics": {
+          "cloudHigh": null,
+          "cloudMid": null,
+          "cloudLow": null,
+          "visibilityKm": null,
+          "windowTransparency": null
+        }
+      },
+      {
+        "effectiveAt": "2026-11-17T08:11:00.000Z",
+        "quality": null,
+        "probability": null,
+        "qualityPotential": {
+          "value": null,
+          "valueStatus": "insufficient_data"
+        },
+        "occurrenceEstimate": {
+          "value": null,
+          "valueStatus": "insufficient_data",
+          "calibrated": false
+        },
+        "qualityValidUntil": "2026-11-17T04:17:35.380Z",
+        "probabilityValidUntil": "2026-11-17T04:17:26.837Z",
+        "actionState": "unavailable",
+        "actionValidUntil": "2026-11-17T08:41:00.000Z",
+        "status": "insufficient_data",
+        "weather": {
+          "label": "天气待更新",
+          "kind": "unknown",
+          "weatherCode": null,
+          "weatherText": null,
+          "source": "open-meteo",
+          "precipitationRateMmH": null,
+          "precipitationProbability": null,
+          "isPrecipitating": false,
+          "blocksSunset": false
+        },
+        "metrics": {
+          "cloudHigh": null,
+          "cloudMid": null,
+          "cloudLow": null,
+          "visibilityKm": null,
+          "windowTransparency": null
+        }
+      },
+      {
+        "effectiveAt": "2026-11-17T08:41:00.000Z",
+        "quality": null,
+        "probability": null,
+        "qualityPotential": {
+          "value": null,
+          "valueStatus": "insufficient_data"
+        },
+        "occurrenceEstimate": {
+          "value": null,
+          "valueStatus": "insufficient_data",
+          "calibrated": false
+        },
+        "qualityValidUntil": "2026-11-17T04:17:35.380Z",
+        "probabilityValidUntil": "2026-11-17T04:17:26.837Z",
+        "actionState": "unavailable",
+        "actionValidUntil": "2026-11-17T08:56:00.000Z",
+        "status": "insufficient_data",
+        "weather": {
+          "label": "天气待更新",
+          "kind": "unknown",
+          "weatherCode": null,
+          "weatherText": null,
+          "source": "open-meteo",
+          "precipitationRateMmH": null,
+          "precipitationProbability": null,
+          "isPrecipitating": false,
+          "blocksSunset": false
+        },
+        "metrics": {
+          "cloudHigh": null,
+          "cloudMid": null,
+          "cloudLow": null,
+          "visibilityKm": null,
+          "windowTransparency": null
+        }
+      },
+      {
+        "effectiveAt": "2026-11-17T08:56:00.000Z",
+        "quality": null,
+        "probability": null,
+        "qualityPotential": {
+          "value": null,
+          "valueStatus": "insufficient_data"
+        },
+        "occurrenceEstimate": {
+          "value": null,
+          "valueStatus": "insufficient_data",
+          "calibrated": false
+        },
+        "qualityValidUntil": "2026-11-17T04:17:35.380Z",
+        "probabilityValidUntil": "2026-11-17T04:17:26.837Z",
+        "actionState": "unavailable",
+        "actionValidUntil": "2026-11-17T09:11:00.000Z",
+        "status": "insufficient_data",
+        "weather": {
+          "label": "天气待更新",
+          "kind": "unknown",
+          "weatherCode": null,
+          "weatherText": null,
+          "source": "open-meteo",
+          "precipitationRateMmH": null,
+          "precipitationProbability": null,
+          "isPrecipitating": false,
+          "blocksSunset": false
+        },
+        "metrics": {
+          "cloudHigh": null,
+          "cloudMid": null,
+          "cloudLow": null,
+          "visibilityKm": null,
+          "windowTransparency": null
+        }
+      },
+      {
+        "effectiveAt": "2026-11-17T09:11:00.000Z",
+        "quality": null,
+        "probability": null,
+        "qualityPotential": {
+          "value": null,
+          "valueStatus": "insufficient_data"
+        },
+        "occurrenceEstimate": {
+          "value": null,
+          "valueStatus": "insufficient_data",
+          "calibrated": false
+        },
+        "qualityValidUntil": "2026-11-17T04:17:35.380Z",
+        "probabilityValidUntil": "2026-11-17T04:17:26.837Z",
+        "actionState": "unavailable",
+        "actionValidUntil": "2026-11-17T09:26:00.000Z",
+        "status": "insufficient_data",
+        "weather": {
+          "label": "天气待更新",
+          "kind": "unknown",
+          "weatherCode": null,
+          "weatherText": null,
+          "source": "open-meteo",
+          "precipitationRateMmH": null,
+          "precipitationProbability": null,
+          "isPrecipitating": false,
+          "blocksSunset": false
+        },
+        "metrics": {
+          "cloudHigh": null,
+          "cloudMid": null,
+          "cloudLow": null,
+          "visibilityKm": null,
+          "windowTransparency": null
+        }
+      },
+      {
+        "effectiveAt": "2026-11-17T09:26:00.000Z",
+        "quality": null,
+        "probability": null,
+        "qualityPotential": {
+          "value": null,
+          "valueStatus": "insufficient_data"
+        },
+        "occurrenceEstimate": {
+          "value": null,
+          "valueStatus": "insufficient_data",
+          "calibrated": false
+        },
+        "qualityValidUntil": "2026-11-17T04:17:35.380Z",
+        "probabilityValidUntil": "2026-11-17T04:17:26.837Z",
+        "actionState": "finished",
+        "actionValidUntil": null,
+        "status": "finished",
+        "weather": {
+          "label": "天气待更新",
+          "kind": "unknown",
+          "weatherCode": null,
+          "weatherText": null,
+          "source": "open-meteo",
+          "precipitationRateMmH": null,
+          "precipitationProbability": null,
+          "isPrecipitating": false,
+          "blocksSunset": false
+        },
+        "metrics": {
+          "cloudHigh": null,
+          "cloudMid": null,
+          "cloudLow": null,
+          "visibilityKm": null,
+          "windowTransparency": null
+        }
+      }
+    ]
+  }
+}

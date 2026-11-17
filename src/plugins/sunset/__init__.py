@@ -3,19 +3,25 @@ import re
 from datetime import datetime, timedelta
 
 from nonebot import get_bots, get_driver, get_plugin_config, logger, on_regex
-from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent, MessageSegment
+from nonebot.adapters.onebot.v11 import (
+    Bot,
+    GroupMessageEvent,
+    MessageEvent,
+    MessageSegment,
+)
 from nonebot.plugin import PluginMetadata
-from src.common.settings import get_runtime_settings_store
+
 from src.common.background_tasks import create_background_task
+from src.common.settings import get_runtime_settings_store
 
 from .config import Config
 from .data_source import (
+    TZ,
     SunsetError,
     build_sunset_alert,
     build_sunset_report,
     fetch_sunset_events,
 )
-
 
 __plugin_meta__ = PluginMetadata(
     name="sunset",
@@ -28,7 +34,9 @@ __plugin_meta__ = PluginMetadata(
 config = get_plugin_config(Config)
 runtime_settings = get_runtime_settings_store()
 driver = get_driver()
-sun_command = on_regex(r"^(?:[.。])?(?:sun|火烧云)(?:\s+|$)(.*)$", priority=20, block=True)
+sun_command = on_regex(
+    r"^(?:[.。])?(?:sun|火烧云)(?:\s+|$)(.*)$", priority=20, block=True
+)
 
 
 @sun_command.handle()
@@ -76,7 +84,10 @@ def _parse_notify_time(value: str) -> tuple[int, int]:
 
 
 def _next_notify_at(now: datetime) -> datetime:
-    notify_times = sorted(_parse_notify_time(value) for value in config.sunset_notify_times)
+    now = now.astimezone(TZ) if now.tzinfo else now.replace(tzinfo=TZ)
+    notify_times = sorted(
+        _parse_notify_time(value) for value in config.sunset_notify_times
+    )
     if not notify_times:
         raise ValueError("SUNSET_NOTIFY_TIMES cannot be empty.")
 
@@ -99,7 +110,9 @@ def _next_notify_at(now: datetime) -> datetime:
 
 def _owner_ids() -> list[str]:
     configured_ids = [str(owner_id).strip() for owner_id in config.sunset_owner_ids]
-    owner_ids = configured_ids or [str(owner_id).strip() for owner_id in driver.config.superusers]
+    owner_ids = configured_ids or [
+        str(owner_id).strip() for owner_id in driver.config.superusers
+    ]
     return [owner_id for owner_id in owner_ids if owner_id]
 
 
@@ -122,12 +135,17 @@ async def _run_sunset_notify() -> None:
 
     owner_ids = _owner_ids()
     if not owner_ids:
-        logger.warning("Sunset alert skipped: no owner configured. Set SUNSET_OWNER_IDS or SUPERUSERS.")
+        logger.warning(
+            "Sunset alert skipped: no owner configured. Set SUNSET_OWNER_IDS or SUPERUSERS."
+        )
         return
 
     try:
+        city = await runtime_settings.get_str_async(
+            "sunset", "default_city", config.sunset_default_city
+        )
         responses = await fetch_sunset_events(
-            location=config.sunset_default_city,
+            location=city,
             api_url=config.sunset_api_url,
             model=config.sunset_model,
             timeout_seconds=config.sunset_timeout_seconds,
@@ -153,12 +171,12 @@ async def _run_sunset_notify() -> None:
 async def _sunset_notify_scheduler() -> None:
     while config.sunset_notify_enabled:
         try:
-            run_at = _next_notify_at(datetime.now())
+            run_at = _next_notify_at(datetime.now(TZ))
         except ValueError as exc:
             logger.error("Sunset alert scheduler disabled: {}", exc)
             return
 
-        wait_seconds = max((run_at - datetime.now()).total_seconds(), 0)
+        wait_seconds = max((run_at - datetime.now(TZ)).total_seconds(), 0)
         logger.info("Sunset alert next run at {}", run_at.strftime("%Y-%m-%d %H:%M:%S"))
         await asyncio.sleep(wait_seconds)
         await _run_sunset_notify()
@@ -169,4 +187,6 @@ async def start_sunset_notify_scheduler() -> None:
     if not config.sunset_notify_enabled:
         return
 
-    create_background_task(_sunset_notify_scheduler(), name="sunset-scheduler", key="sunset-scheduler")
+    create_background_task(
+        _sunset_notify_scheduler(), name="sunset-scheduler", key="sunset-scheduler"
+    )

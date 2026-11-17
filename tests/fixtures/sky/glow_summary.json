@@ -1,0 +1,226 @@
+{
+  "version": "5e32b5768e0c7eb3eda7a6e9f40acf2d2d83f0df1de301d13030a74e6c58a3a2",
+  "days": [
+    {
+      "date": "2026-11-17",
+      "spots": [
+        {
+          "spot": "beijing",
+          "spotName": "北京景山 / 故宫",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "erhai",
+          "spotName": "大理洱海",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "chongqing",
+          "spotName": "重庆来福士 / 南山",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "suzhou",
+          "spotName": "苏州金鸡湖",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "xiamen",
+          "spotName": "厦门海湾公园",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "qingdao",
+          "spotName": "青岛栈桥 / 五四广场",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "chengdu",
+          "spotName": "成都金融城双塔",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "shenzhen",
+          "spotName": "深圳人才公园 / 深圳湾",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "huangshan",
+          "spotName": "黄山光明顶",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "guangzhou",
+          "spotName": "广州塔 / 海心桥",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "wuhan",
+          "spotName": "武汉黄鹤楼 / 长江大桥",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "sanya",
+          "spotName": "三亚椰梦长廊",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "xian",
+          "spotName": "西安城墙 / 永宁门",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "nanjing",
+          "spotName": "南京玄武湖",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "xiapu",
+          "spotName": "霞浦东壁村",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "wuxi",
+          "spotName": "无锡鼋头渚 / 太湖",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "hongkong",
+          "spotName": "香港维多利亚港",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "dunhuang",
+          "spotName": "敦煌鸣沙山月牙泉",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "ningbo",
+          "spotName": "宁波",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "dongguan",
+          "spotName": "东莞",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "changsha",
+          "spotName": "长沙岳麓山 / 橘子洲",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "zhengzhou",
+          "spotName": "郑州北龙湖",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "jinan",
+          "spotName": "济南大明湖",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "caoyuan-tianlu",
+          "spotName": "张家口草原天路",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "hukou",
+          "spotName": "黄河壶口瀑布（山西侧）",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "haerbin-song",
+          "spotName": "哈尔滨松花江铁路桥",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "hengshan",
+          "spotName": "衡山祝融峰",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "lushan",
+          "spotName": "庐山含鄱口",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "erlangjian",
+          "spotName": "青海湖二郎剑",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "namtso",
+          "spotName": "纳木错·扎西岛",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "yinchuan",
+          "spotName": "银川览山公园",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "ejina",
+          "spotName": "额济纳胡杨林",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "wucaitan",
+          "spotName": "布尔津五彩滩",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "tianjin-eye",
+          "spotName": "天津之眼·海河",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "taipei",
+          "spotName": "台北象山",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        },
+        {
+          "spot": "longzhua-jiao",
+          "spotName": "澳门路环·龙爪角海岸径",
+          "date": "2026-11-17",
+          "businessDate": "2026-11-17"
+        }
+      ]
+    }
+  ]
+}

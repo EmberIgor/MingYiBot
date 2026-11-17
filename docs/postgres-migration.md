@@ -80,7 +80,7 @@ PG 首次业务写入前可恢复 `.env` 并重启回退；已经有 PG 写入�
 ## 测试
 
 普通测试：`python -m unittest discover -s tests`。
-CI 使用 MySQL 8.4 和 PostgreSQL 17 服务运行同一套测试。
+数据库改动需要回归时，在本地使用独立 MySQL 8.4 / PostgreSQL 17 测试服务运行相关测试。GitHub Actions 已撤下，不连接生产库运行测试。
 本地真实集成测试设置 `INTEGRATION_DB=1` 与 `INTEGRATION_ENV=/secure/test.env`；
 两个库名必须以 `mingyibot_test` 开头，测试会清理这两个测试库的业务表。
 测试覆盖两个后端的写入去重、记忆裁剪/归档、配置更新、重复建表、完整迁移校验、

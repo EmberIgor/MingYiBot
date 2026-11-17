@@ -23,7 +23,9 @@ ws://宿主机IP:8080/onebot/v11/ws
 
 ## 本地 Docker 部署
 
-生产容器运行在 Mac OrbStack；NAS 目录保存 `.env`、`data/`、`logs/` 与运行用 Compose。源码保留在 Mac。GitHub Actions 只运行测试，推送代码不会部署或发布镜像。Watchtower 已退役。
+生产容器运行在 Mac OrbStack；NAS 目录保存 `.env`、`data/`、`logs/` 与运行用 Compose。源码保留在 Mac。GitHub Actions 和 Watchtower 均已撤下，推送代码只用于保存版本。
+
+测试在本地按改动范围执行必要的回归；仅修改文档或工作流时检查差异即可，无须重建或重启机器人。涉及数据库的改动使用独立测试数据库，不能对生产库跑集成测试。
 
 由 Zoe 在源码目录构建、更新并核验：
 

@@ -115,13 +115,20 @@ class NotificationTests(unittest.TestCase):
                 dict(city="北京", forecasts=[good()], errors=["Glow Sunset: http_429"]),
             )
         ]
-        report = ds.format_sunset_report(events, now=NOW)
+        report = ds.format_sunset_report(events, now=NOW, details=True)
         self.assertIn("75/100", report)
         self.assertIn("启发式", report)
         self.assertIn("未知", report)
         self.assertIn("2026-11-17", report)
         self.assertIn("Open-Meteo", report)
-        self.assertIn("未知", ds.build_sunset_alert(events, now=NOW))
+        compact = ds.format_sunset_report(events, now=NOW)
+        self.assertIn("今天晚霞", compact)
+        self.assertIn("追光人：75分", compact)
+        self.assertIn("Glow暂时没查到数据", compact)
+        self.assertNotIn("Open-Meteo", compact)
+        self.assertNotIn("不保证", compact)
+        self.assertNotIn("http_429", compact)
+        self.assertIn("暂时没查到数据", ds.build_sunset_alert(events, now=NOW))
 
 
 class AsyncCollectionTests(unittest.IsolatedAsyncioTestCase):
@@ -147,7 +154,7 @@ class AsyncCollectionTests(unittest.IsolatedAsyncioTestCase):
         ):
             result = await ds.fetch_sunset_events("北京")
         self.assertEqual(result[1][1]["forecasts"][0]["quality"], 54)
-        self.assertIn("未知", ds.format_sunset_report(result, now=NOW))
+        self.assertIn("追光人暂时没查到数据", ds.format_sunset_report(result, now=NOW))
         later = NOW + timedelta(minutes=1)
         with (
             patch.object(

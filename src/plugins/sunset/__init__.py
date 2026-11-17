@@ -26,7 +26,7 @@ from .data_source import (
 __plugin_meta__ = PluginMetadata(
     name="sunset",
     description="查询指定地点两日内火烧云分析信息。",
-    usage="sun 上海\n.sun 上海\n火烧云 北京\n.火烧云 北京",
+    usage="sun 上海\n.sun 上海\n火烧云 北京\nsun 北京 详情\nsun 详情",
     config=Config,
 )
 
@@ -41,7 +41,7 @@ sun_command = on_regex(
 
 @sun_command.handle()
 async def handle_sun(event: MessageEvent) -> None:
-    location = _extract_location(event.get_plaintext())
+    location, details = _extract_query(event.get_plaintext())
     if not location:
         group_id = event.group_id if isinstance(event, GroupMessageEvent) else None
         location = await runtime_settings.get_str_async(
@@ -57,6 +57,7 @@ async def handle_sun(event: MessageEvent) -> None:
             api_url=config.sunset_api_url,
             model=config.sunset_model,
             timeout_seconds=config.sunset_timeout_seconds,
+            details=details,
         )
     except SunsetError as exc:
         logger.warning("Sunset command failed for location {}: {}", location, exc)
@@ -67,6 +68,16 @@ async def handle_sun(event: MessageEvent) -> None:
 
 def _extract_location(message: str) -> str:
     return re.sub(r"^(?:[.。])?(?:sun|火烧云)(?:\s+|$)", "", message, count=1).strip()
+
+
+def _extract_query(message: str) -> tuple[str, bool]:
+    location = _extract_location(message)
+    if location == "详情":
+        return "", True
+    match = re.search(r"\s+详情$", location)
+    if match:
+        return location[: match.start()].strip(), True
+    return location, False
 
 
 def _parse_notify_time(value: str) -> tuple[int, int]:

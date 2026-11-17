@@ -201,9 +201,12 @@ async def fetch_sunset_events(
             _waiters.pop(city, None)
 
 
-async def build_sunset_report(location, api_url="", model="", timeout_seconds=5):
+async def build_sunset_report(
+    location, api_url="", model="", timeout_seconds=5, *, details=False
+):
     return format_sunset_report(
-        await fetch_sunset_events(location, api_url, model, timeout_seconds)
+        await fetch_sunset_events(location, api_url, model, timeout_seconds),
+        details=details,
     )
 
 
@@ -292,7 +295,121 @@ def _source_line(f, now):
     return f"{source} {clock}：{metric}；低/中/高云 {evidence}%；{labels.get(status, '数据未知')}"
 
 
-def format_sunset_report(responses, *, now=None):
+def _compact_report(responses, now):
+    city = responses[0][1].get("city", "未知城市") if responses else "未知城市"
+    lines = [f"{city}｜朝晚霞"]
+    shown = 0
+    for event, data in responses:
+        day = (
+            data.get("date")
+            or (now + timedelta(days=int(event[-1]) - 1)).date().isoformat()
+        )
+        rows = data.get("forecasts") or []
+        rows = [
+            f
+            for f in rows
+            if f.get("status") != "passed"
+            and not ((t := instant(f.get("event_time"))) and t <= now)
+        ]
+        if (
+            not rows
+            and day == now.date().isoformat()
+            and event.startswith("rise")
+            and now.hour >= 12
+        ):
+            continue
+        if not rows and data.get("forecasts"):
+            continue
+        label = (
+            "今天"
+            if day == now.date().isoformat()
+            else "明天"
+            if day == (now + timedelta(days=1)).date().isoformat()
+            else day[5:]
+        )
+        label += "朝霞" if event.startswith("rise") else "晚霞"
+        clocks = sorted(
+            {t.strftime("%H:%M") for f in rows if (t := instant(f.get("event_time")))}
+        )
+        clock = (clocks[0] + (" 左右" if len(clocks) > 1 else "")) if clocks else ""
+        lines.extend(
+            [
+                "",
+                f"{'🌅' if event.startswith('rise') else '🌇'} {label}"
+                + (f" · {clock}" if clock else ""),
+            ]
+        )
+        valid = [f for f in rows if f.get("status") == "valid"]
+        strengths = [opportunity_strength(f, now) for f in valid]
+        strength = max(strengths, default=0)
+        if not valid:
+            lines.append("暂时没查到有效数据")
+        elif strength >= 70:
+            lines.append("有机会，适合就近看看")
+        elif strength >= 55:
+            lines.append("可以顺道看看，暂不值得专程去")
+        elif any(
+            opportunity_strength(f, now) == 0
+            and f.get("source") == LOCAL
+            and number(f.get("score")) is not None
+            and f["score"] >= 55
+            for f in valid
+        ):
+            lines.append("分数尚可，但云雨条件不理想")
+        else:
+            lines.append("期待较低")
+        for f in rows:
+            if f.get("status") != "valid":
+                name = "Glow" if f.get("source") == GLOW else "追光人"
+                lines.append(
+                    f"{name}：数据已过期"
+                    if f.get("status") == "stale"
+                    else f"{name}：暂无数据"
+                )
+                continue
+
+            def score(value):
+                return "未知" if value is None else f"{value:.0f}分"
+
+            if f.get("source") == GLOW:
+                lines.append(
+                    f"Glow：质量{score(f.get('quality'))}，出现估计{score(f.get('probability'))}"
+                )
+            else:
+                lines.append(f"追光人：{score(f.get('score'))}")
+        if len(strengths) > 1 and max(strengths) >= 55 and min(strengths) < 55:
+            lines.append("两家判断有差异，暂不建议专程远行。")
+        elif valid and all(
+            (
+                number((f.get("cloud_evidence") or {}).get("mid")) is not None
+                and number((f.get("cloud_evidence") or {}).get("high")) is not None
+                and (f["cloud_evidence"]["mid"] + f["cloud_evidence"]["high"] < 15)
+            )
+            for f in valid
+        ):
+            lines.append("中高云不足。")
+        errors = data.get("errors") or []
+        missing = []
+        if any(str(e).startswith(GLOW) for e in errors):
+            missing.append("Glow")
+        if any(str(e).startswith(LOCAL) for e in errors):
+            missing.append("追光人")
+        if missing:
+            lines.append(" / ".join(missing) + "暂时没查到数据")
+        shown += 1
+    if not shown:
+        lines.extend(["", "今天的时段已过，暂无后续预报。"])
+    return "\n".join(lines)
+
+
+def format_sunset_report(responses, *, now=None, details=False):
+    now = now or _now()
+    if not details:
+        return _compact_report(responses, now)
+    return _detailed_report(responses, now=now)
+
+
+def _detailed_report(responses, *, now=None):
     now = now or _now()
     city = responses[0][1].get("city", "未知城市") if responses else "未知城市"
     lines = [f"【{city}】朝晚霞（北京时间）"]
@@ -310,7 +427,7 @@ def format_sunset_report(responses, *, now=None):
         errors.update(data.get("errors") or [])
     strength = max(strengths, default=0)
     if strength >= 70:
-        lines.append("建议：有较强机会信号，可在附近开阔处守候；不保证成霞。")
+        lines.append("建议：有较强机会信号，可在附近开阔处守候。")
     elif strength >= 55:
         lines.append("建议：可顺道观察，暂不建议专程远行。")
     else:
@@ -348,10 +465,7 @@ def build_sunset_alert(responses, threshold_level="中烧", *, now=None):
             selected.append((event, dict(data, forecasts=future)))
     if not selected:
         return ""
-    return (
-        f"朝晚霞机会提醒：保守机会强度阈值 {threshold}/100（非物理烧级）\n"
-        + format_sunset_report(selected, now=now)
-    )
+    return "朝晚霞提醒\n" + format_sunset_report(selected, now=now)
 
 
 if __name__ == "__main__":
